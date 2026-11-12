@@ -8,6 +8,7 @@ from typing import Optional, Tuple, Dict, Any, List
 from fastapi import HTTPException, UploadFile, status
 
 from .config import settings
+from .detection import DecodedPacketEvidence, detect_potential_tcp_port_scans
 from .models import (
     AnalysisResponse,
     CaptureMetadata,
@@ -73,6 +74,41 @@ def parse_tcp_flags(flags_str: str) -> Optional[TCPFlags]:
         )
     except ValueError:
         return None
+
+
+def infer_protocol(
+    protocol_stack: str,
+    tcp_flags: str,
+    tcp_source_port: str,
+    tcp_destination_port: str,
+    udp_source_port: str,
+    udp_destination_port: str,
+) -> str:
+    """Infer a useful protocol label when TShark's display column is empty or OTHER."""
+    layer_names = [part.strip().lower() for part in protocol_stack.split(":") if part.strip()]
+    protocol_names = {
+        "dns": "DNS",
+        "http": "HTTP",
+        "http2": "HTTP",
+        "tls": "TLS",
+        "ssl": "TLS",
+        "dhcp": "DHCP",
+        "bootp": "DHCP",
+        "arp": "ARP",
+        "icmp": "ICMP",
+        "icmpv6": "ICMP",
+        "tcp": "TCP",
+        "udp": "UDP",
+    }
+    for layer in reversed(layer_names):
+        if layer in protocol_names:
+            return protocol_names[layer]
+
+    if tcp_flags or tcp_source_port or tcp_destination_port:
+        return "TCP"
+    if udp_source_port or udp_destination_port:
+        return "UDP"
+    return "OTHER"
 
 
 def validate_capture_header(initial_bytes: bytes) -> str:
@@ -186,6 +222,7 @@ def analyze_pcap_with_tshark(
         "-e", "frame.time_epoch",
         "-e", "frame.time_relative",
         "-e", "frame.len",
+        "-e", "frame.protocols",
         "-e", "ip.src",
         "-e", "ipv6.src",
         "-e", "ip.dst",
@@ -262,6 +299,7 @@ def analyze_pcap_with_tshark(
     protocol_counter: Counter[str] = Counter()
     talker_packets: Counter[str] = Counter()
     talker_bytes: Counter[str] = Counter()
+    decoded_evidence: List[DecodedPacketEvidence] = []
 
     total_packets = 0
     first_epoch: Optional[float] = None
@@ -332,9 +370,31 @@ def analyze_pcap_with_tshark(
         dport = int(dport_str) if dport_str.isdigit() else None
 
         # Protocol & Info
-        proto = get_val("_ws.col.Protocol") or "OTHER"
+        proto_column = get_val("_ws.col.Protocol").strip()
+        if not proto_column or proto_column.upper() in {"OTHER", "DATA"}:
+            proto = infer_protocol(
+                get_val("frame.protocols"), get_val("tcp.flags"),
+                get_val("tcp.srcport"), get_val("tcp.dstport"),
+                get_val("udp.srcport"), get_val("udp.dstport"),
+            )
+        else:
+            proto = proto_column
         info = get_val("_ws.col.Info")
         flags = parse_tcp_flags(get_val("tcp.flags"))
+
+        # Retain lightweight decoded evidence for rules, including packets beyond
+        # max_packets (the response list is intentionally bounded for the UI).
+        decoded_evidence.append(
+            DecodedPacketEvidence(
+                packet_id=frame_num,
+                timestamp=rel_time,
+                source_ip=src_ip,
+                destination_ip=dst_ip,
+                destination_port=(int(get_val("tcp.dstport")) if get_val("tcp.dstport").isdigit() else None),
+                protocol=proto,
+                tcp_flags=flags,
+            )
+        )
 
         # Accumulate metrics across all packets in file
         protocol_counter[proto] += 1
@@ -409,10 +469,12 @@ def analyze_pcap_with_tshark(
         endTime=end_iso,
         durationSeconds=duration,
     )
+    findings = detect_potential_tcp_port_scans(decoded_evidence)
 
     return AnalysisResponse(
         metadata=metadata,
         protocolCounts=protocol_counts,
         topTalkers=top_talkers_list,
         packets=packet_records,
+        findings=findings,
     )

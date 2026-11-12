@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
@@ -45,6 +45,28 @@ class TopTalker(BaseModel):
     bytes: int
 
 
+class FindingTimeWindow(BaseModel):
+    startSeconds: float
+    endSeconds: float
+    durationSeconds: float
+
+
+class DetectionFinding(BaseModel):
+    id: str
+    ruleId: str
+    ruleName: str
+    title: str
+    severity: Literal["info", "low", "medium", "high", "critical"]
+    sourceIp: str
+    destinationIp: str
+    observedDestinationPorts: List[int]
+    timeWindow: FindingTimeWindow
+    packetCount: int
+    relevantPacketIds: List[int]
+    explanation: str
+    recommendedSteps: List[str]
+
+
 class CaptureMetadata(BaseModel):
     fileName: str
     fileSizeBytes: int
@@ -61,6 +83,7 @@ class AnalysisResponse(BaseModel):
     protocolCounts: List[ProtocolCount]
     topTalkers: List[TopTalker]
     packets: List[PacketRecord]
+    findings: List[DetectionFinding]
 
 
 class ErrorResponse(BaseModel):

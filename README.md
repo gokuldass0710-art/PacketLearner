@@ -572,7 +572,9 @@ Expected response fields:
 
 ## 🔍 Detection Engine
 
-The detection engine will use rule-based analysis to identify potentially suspicious network behavior.
+Phase 5 currently includes one deterministic, AI-independent rule: `PL-RULE-001` (`POTENTIAL_TCP_PORT_SCAN`). It examines TShark-decoded packets and groups TCP SYN packets (SYN set, ACK unset) by source IP and destination IP. A finding is returned only when at least **5 SYN packets** reach **5 distinct destination ports** within a **10-second sliding window**. These thresholds are named constants in `backend/app/detection.py` so they can be tuned deliberately.
+
+Each finding includes the source and destination, observed ports, relative time window, packet count and IDs, an explanation, severity, and analyst follow-up steps. The UI labels these as potential findings; the rule does not confirm an attack.
 
 Initial detection rules may include:
 
@@ -584,7 +586,7 @@ Initial detection rules may include:
 | Traffic Anomaly | Traffic behavior that differs from defined thresholds |
 | Suspicious Communication | Network relationships requiring further investigation |
 
-Detection rules will be tested against sample captures and documented with their limitations.
+Limitations: this first rule is SYN-focused, uses relative capture time, and can miss slow scans, fragmented or malformed traffic, spoofed sources, and scans where TShark cannot decode the TCP fields. Authorized vulnerability scanners and some unusual applications can still match it, so analysts should validate the source and correlate host, firewall, and IDS logs.
 
 AI will explain findings, but the detection engine remains responsible for generating the underlying detection results.
 

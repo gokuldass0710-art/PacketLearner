@@ -58,4 +58,8 @@ The API will be available at:
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/api/health` | Verifies service status and TShark binary availability |
-| `POST` | `/api/captures/analyze` | Accepts `.pcap` or `.pcapng` (multipart/form-data) up to 50MB and returns parsed metadata, packet records, protocol statistics, and top talkers |
+| `POST` | `/api/captures/analyze` | Accepts `.pcap` or `.pcapng` (multipart/form-data) up to 50MB and returns parsed metadata, packet records, protocol statistics, top talkers, and rule-based findings |
+
+### Detection rule
+
+`PL-RULE-001` (`POTENTIAL_TCP_PORT_SCAN`) groups decoded TCP SYN packets by source and destination IP. It reports a potential finding only when the group contains at least 5 SYN packets to 5 distinct destination ports within a 10-second sliding window. The thresholds are named constants in `app/detection.py`. Findings include packet IDs and relative timing so the frontend can show the supporting evidence. This is an indicator for investigation, not confirmation of an attack; slow scans, malformed traffic, and authorized scanners may be missed or may match.

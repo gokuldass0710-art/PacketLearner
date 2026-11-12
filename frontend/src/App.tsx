@@ -80,7 +80,7 @@ export default function App() {
       size: `${(data.metadata.fileSizeBytes / 1024 / 1024).toFixed(2)} MB`,
       packets: data.metadata.totalPackets,
       duration: formatDuration(data.metadata.durationSeconds),
-      status: 'Clean',
+      status: data.findings.length > 0 ? 'Suspicious Found' : 'Clean',
       date: 'Just analyzed',
       isReal: true,
     }
@@ -306,15 +306,15 @@ export default function App() {
               value={
                 analysisData && analysisData.topTalkers.length > 0
                   ? analysisData.topTalkers[0].ip
-                  : '192.168.1.10'
+                  : '—'
               }
               description={
                 analysisData && analysisData.topTalkers.length > 0
                   ? `${analysisData.topTalkers[0].packetCount} pkts (${Math.round(analysisData.topTalkers[0].bytes / 1024)} KB)`
-                  : 'Potential SYN scan detected'
+                  : 'Upload a capture to inspect traffic'
               }
               trend={{
-                value: analysisData ? 'Active Node' : 'Review',
+                value: analysisData ? 'Active Node' : 'Sample view',
                 isPositive: !analysisData,
               }}
               icon={AlertTriangle}
@@ -630,37 +630,61 @@ export default function App() {
             </div>
           </div>
 
-          <GlassCard className="p-6 space-y-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">Rule: POTENTIAL_PORT_SCAN</h3>
-                  <span className="text-[11px] text-cyber-muted font-mono">
-                    Detection Rule ID: PL-RULE-001 • Severity: Medium
-                  </span>
-                </div>
-              </div>
-              <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                Sample Finding
-              </span>
-            </div>
+          {!analysisData ? (
+            <GlassCard className="p-8 text-center space-y-2">
+              <ShieldAlert className="w-8 h-8 text-cyber-muted mx-auto" />
+              <h3 className="text-sm font-semibold text-white">No capture loaded</h3>
+              <p className="text-xs text-cyber-muted">Upload a PCAP or PCAPNG to run the detection rules.</p>
+            </GlassCard>
+          ) : analysisData.findings.length === 0 ? (
+            <GlassCard className="p-8 text-center space-y-2">
+              <CheckCircle2 className="w-8 h-8 text-cyber-neon mx-auto" />
+              <h3 className="text-sm font-semibold text-white">No findings</h3>
+              <p className="text-xs text-cyber-muted">No potential TCP port scan met the configured evidence threshold in {analysisData.metadata.fileName}.</p>
+            </GlassCard>
+          ) : (
+            <div className="space-y-4">
+              {analysisData.findings.map((finding) => (
+                <GlassCard key={finding.id} className="p-6 space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                        <AlertTriangle className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-white">{finding.title}</h3>
+                        <span className="text-[11px] text-cyber-muted font-mono">
+                          Rule ID: {finding.ruleId} • Severity: {finding.severity}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                      Potential finding
+                    </span>
+                  </div>
 
-            <p className="text-xs text-cyber-muted leading-relaxed">
-              Source IP <strong>192.168.1.10</strong> dispatched repeated TCP SYN packets across multiple sequential destination ports (21, 22, 23, 80, 443) on <strong>192.168.1.20</strong> within 500 milliseconds, eliciting RST responses.
-            </p>
+                  <p className="text-xs text-cyber-muted leading-relaxed">{finding.explanation}</p>
 
-            <div className="p-3 rounded-xl bg-black/40 border border-white/10 text-xs space-y-1.5 font-mono">
-              <div className="text-cyber-neon font-semibold text-[11px]">Recommended Analyst Steps:</div>
-              <ul className="list-disc list-inside text-cyber-muted space-y-0.5 text-[11px]">
-                <li>Verify if 192.168.1.10 is an authorized vulnerability scanner.</li>
-                <li>Inspect packet flags for TCP SYN without completed ACK handshakes.</li>
-                <li>Correlate firewall logs with timestamp 00:35 - 00:42.</li>
-              </ul>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] font-mono">
+                    <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1">
+                      <div className="text-cyber-neon font-semibold">Evidence</div>
+                      <div>Source: <span className="text-white">{finding.sourceIp}</span></div>
+                      <div>Destination: <span className="text-white">{finding.destinationIp}</span></div>
+                      <div>Ports: <span className="text-white">{finding.observedDestinationPorts.join(', ')}</span></div>
+                      <div>Packets: <span className="text-white">{finding.packetCount}</span> • IDs: <span className="text-white">{finding.relevantPacketIds.join(', ')}</span></div>
+                      <div>Window: <span className="text-white">{finding.timeWindow.startSeconds.toFixed(3)}s–{finding.timeWindow.endSeconds.toFixed(3)}s ({finding.timeWindow.durationSeconds.toFixed(3)}s)</span></div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1.5">
+                      <div className="text-cyber-neon font-semibold">Recommended Analyst Steps</div>
+                      <ul className="list-disc list-inside text-cyber-muted space-y-0.5">
+                        {finding.recommendedSteps.map((step) => <li key={step}>{step}</li>)}
+                      </ul>
+                    </div>
+                  </div>
+                </GlassCard>
+              ))}
             </div>
-          </GlassCard>
+          )}
         </div>
       )}
 

@@ -154,6 +154,29 @@ export interface AnalysisResponse {
   protocolCounts: ProtocolCountItem[]
   topTalkers: TopTalkerItem[]
   packets: Packet[]
+  findings: DetectionFinding[]
+}
+
+export interface FindingTimeWindow {
+  startSeconds: number
+  endSeconds: number
+  durationSeconds: number
+}
+
+export interface DetectionFinding {
+  id: string
+  ruleId: string
+  ruleName: string
+  title: string
+  severity: SeverityLevel
+  sourceIp: string
+  destinationIp: string
+  observedDestinationPorts: number[]
+  timeWindow: FindingTimeWindow
+  packetCount: number
+  relevantPacketIds: number[]
+  explanation: string
+  recommendedSteps: string[]
 }
 
 export interface BackendHealth {
