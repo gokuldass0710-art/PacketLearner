@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cyber-bg: #030407;
+  --color-cyber-neon: #D4FF24;
+  --color-cyber-blue: #1558C9;
+  --color-cyber-surface: #151515;
+  --color-cyber-text: #F5F5F5;
+  --color-cyber-muted: #999999;
+
+  --color-neon: #D4FF24;
+  --color-electric-blue: #1558C9;
+  --color-dark-surface: #151515;
+}
+
+:root {
+  --color-bg: #030407;
+  --color-surface: #151515;
+  --color-neon: #D4FF24;
+  --color-blue: #1558C9;
+  --color-text: #F5F5F5;
+  --color-muted: #999999;
+}
+
+body {
+  margin: 0;
+  background-color: #030407;
+  color: #F5F5F5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Custom dark cyber scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #030407;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #222222;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1558C9;
+}
