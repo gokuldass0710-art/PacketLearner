@@ -8,7 +8,7 @@ from typing import Optional, Tuple, Dict, Any, List
 from fastapi import HTTPException, UploadFile, status
 
 from .config import settings
-from .detection import DecodedPacketEvidence, detect_potential_tcp_port_scans
+from .detection import DecodedPacketEvidence, detect_findings
 from .models import (
     AnalysisResponse,
     CaptureMetadata,
@@ -390,8 +390,13 @@ def analyze_pcap_with_tshark(
                 timestamp=rel_time,
                 source_ip=src_ip,
                 destination_ip=dst_ip,
-                destination_port=(int(get_val("tcp.dstport")) if get_val("tcp.dstport").isdigit() else None),
+                destination_port=dport,
                 protocol=proto,
+                transport_protocol=(
+                    "TCP" if get_val("tcp.srcport") or get_val("tcp.dstport") or get_val("tcp.flags")
+                    else "UDP" if get_val("udp.srcport") or get_val("udp.dstport")
+                    else "OTHER"
+                ),
                 tcp_flags=flags,
             )
         )
@@ -469,7 +474,7 @@ def analyze_pcap_with_tshark(
         endTime=end_iso,
         durationSeconds=duration,
     )
-    findings = detect_potential_tcp_port_scans(decoded_evidence)
+    findings = detect_findings(decoded_evidence)
 
     return AnalysisResponse(
         metadata=metadata,

@@ -39,6 +39,9 @@ class Settings:
     MAX_PACKET_LIMIT: int = int(os.getenv("MAX_PACKET_LIMIT", "5000"))
     HOST: str = os.getenv("HOST", "127.0.0.1")
     PORT: int = int(os.getenv("PORT", "8000"))
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "")
+    OPENAI_TIMEOUT_SECONDS: int = int(os.getenv("OPENAI_TIMEOUT_SECONDS", "30"))
 
     # CORS origins restricted to local development Vite / frontend
     raw_cors = os.getenv(

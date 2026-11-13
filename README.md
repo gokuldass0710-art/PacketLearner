@@ -162,7 +162,7 @@ Each finding should include:
 
 **Important:** A suspicious pattern does not automatically indicate a confirmed attack. Findings must be presented as potential indicators and supported by evidence.
 
-### 8. AI Network Copilot
+### 8. OpenAI Assistant
 
 PacketLearner will integrate the OpenAI API to provide AI-assisted explanations and investigations.
 
@@ -186,7 +186,7 @@ The AI assistant will support two main capabilities.
 - Explain potential security implications.
 - Assist with investigation report preparation.
 
-The AI assistant will be available through a contextual interface and an expandable AI Copilot panel.
+The OpenAI Assistant will be available through a contextual interface and an expandable assistant panel.
 
 ### 9. Live Network Capture
 
@@ -322,7 +322,7 @@ PacketLearner/
 │   │   ├── packet-explorer/
 │   │   ├── beginner-mode/
 │   │   ├── investigation/
-│   │   ├── ai-copilot/
+│   │   ├── openai-assistant/
 │   │   ├── background/
 │   │   ├── services/
 │   │   └── hooks/
@@ -499,8 +499,9 @@ DATABASE_URL=postgresql://USERNAME:PASSWORD@localhost:5432/packetlearner
 REDIS_URL=redis://localhost:6379/0
 
 # OpenAI
-OPENAI_API_KEY=YOUR_OPENAI_API_KEY
-OPENAI_MODEL=YOUR_SUPPORTED_MODEL_NAME
+OPENAI_API_KEY=
+OPENAI_MODEL=
+OPENAI_TIMEOUT_SECONDS=30
 
 # Packet Processing
 TSHARK_PATH=YOUR_TSHARK_EXECUTABLE_PATH
@@ -512,7 +513,7 @@ SECRET_KEY=GENERATE_A_SECURE_RANDOM_SECRET
 **Important:**
 
 - Replace all placeholders with valid local configuration.
-- Use a model currently supported by your OpenAI API account.
+- Set `OPENAI_API_KEY` and `OPENAI_MODEL` in `backend/.env` to enable the OpenAI Assistant. Use a model currently supported by your OpenAI API account.
 - Never commit `.env` files to GitHub.
 - Never expose the OpenAI API key in frontend code.
 - Do not share API keys through public repositories or screenshots.
@@ -524,6 +525,15 @@ SECRET_KEY=GENERATE_A_SECURE_RANDOM_SECRET
 PacketLearner will use the OpenAI API through the Python backend.
 
 The AI will receive structured packet metadata and relevant detection evidence rather than unrestricted access to raw capture files.
+
+### Local OpenAI Assistant setup
+
+1. Install backend dependencies with `pip install -r backend/requirements.txt`.
+2. Copy `backend/.env.example` to `backend/.env`.
+3. Set `OPENAI_API_KEY` and `OPENAI_MODEL` in `backend/.env`. Keep both values server-side; do not use a `VITE_` variable or paste the key into the frontend.
+4. Start the FastAPI backend and open the **OpenAI Assistant** view after loading a capture.
+
+If either value is missing, the assistant returns a setup message and the frontend does not fabricate an answer. Requests contain only the user question, bounded conversation text, capture summary, selected packet metadata, and Phase 5 findings. PCAP/PCAPNG files, payloads, and unrestricted packet info strings are not sent to OpenAI.
 
 ### Example Evidence Context
 
@@ -572,21 +582,26 @@ Expected response fields:
 
 ## 🔍 Detection Engine
 
-Phase 5 currently includes one deterministic, AI-independent rule: `PL-RULE-001` (`POTENTIAL_TCP_PORT_SCAN`). It examines TShark-decoded packets and groups TCP SYN packets (SYN set, ACK unset) by source IP and destination IP. A finding is returned only when at least **5 SYN packets** reach **5 distinct destination ports** within a **10-second sliding window**. These thresholds are named constants in `backend/app/detection.py` so they can be tuned deliberately.
+Phase 5 includes deterministic, AI-independent rules over lightweight TShark-decoded packet evidence:
 
-Each finding includes the source and destination, observed ports, relative time window, packet count and IDs, an explanation, severity, and analyst follow-up steps. The UI labels these as potential findings; the rule does not confirm an attack.
+- `PL-RULE-001` (`POTENTIAL_TCP_PORT_SCAN`): at least **5 TCP SYN-only packets** to **5 distinct destination ports** within a **10-second sliding window**.
+- `PL-RULE-002` (`POTENTIAL_TCP_SYN_FLOOD`): at least **20 TCP SYN-only connection attempts** from one source to one destination within a **5-second sliding window**.
+- `PL-RULE-003` (`POTENTIAL_UDP_PORT_SCAN`): at least **8 UDP packets** to **8 distinct destination ports** within a **10-second sliding window**.
 
-Initial detection rules may include:
+Each finding includes the source and destination, observed ports, relative time window, packet count and IDs, an explanation, severity, and analyst follow-up steps. The UI labels these as potential findings; no rule confirms an attack. Evidence IDs link to returned packets in Packet Explorer when available; evidence beyond the bounded returned packet list remains represented in the finding and is marked as unavailable for direct inspection.
+
+The detection catalog can grow independently of the UI:
 
 | Detection | Description |
 |---|---|
 | Potential Port Scan | Multiple connection attempts across different ports |
-| Repeated Connection Attempts | Repeated attempts to connect to a destination |
+| Potential TCP SYN Flood | Repeated SYN-only connection attempts to one destination |
+| Potential UDP Port Scan | UDP probes across multiple destination ports |
 | Unusual DNS Activity | Unusual DNS request patterns |
 | Traffic Anomaly | Traffic behavior that differs from defined thresholds |
 | Suspicious Communication | Network relationships requiring further investigation |
 
-Limitations: this first rule is SYN-focused, uses relative capture time, and can miss slow scans, fragmented or malformed traffic, spoofed sources, and scans where TShark cannot decode the TCP fields. Authorized vulnerability scanners and some unusual applications can still match it, so analysts should validate the source and correlate host, firewall, and IDS logs.
+Limitations: these rules use relative capture time and decoded transport fields. They can miss slow scans, fragmented or malformed traffic, spoofed sources, and traffic where TShark cannot decode the relevant fields. Authorized vulnerability scanners, health checks, and unusual applications can still match them, so analysts should validate the source and correlate host, firewall, and IDS logs.
 
 AI will explain findings, but the detection engine remains responsible for generating the underlying detection results.
 
@@ -668,7 +683,7 @@ The background will be optimized to avoid interfering with dashboard readability
 | Phase 3 | Dashboard and packet visualization | Planned |
 | Phase 4 | Beginner learning mode | Planned |
 | Phase 5 | Detection engine and investigation | Planned |
-| Phase 6 | AI Network Copilot | Planned |
+| Phase 6 | OpenAI Assistant | In progress |
 | Phase 7 | Live capture agent | Planned |
 | Phase 8 | Testing and cloud deployment | Planned |
 
@@ -683,7 +698,7 @@ The first usable version will prioritize:
 - Protocol distribution charts.
 - Beginner-friendly packet explanations.
 - Basic suspicious traffic detection.
-- AI Copilot.
+- OpenAI Assistant.
 
 Live capture and public cloud deployment will follow once the core upload and analysis workflow is stable.
 

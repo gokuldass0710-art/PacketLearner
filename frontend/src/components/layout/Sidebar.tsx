@@ -18,7 +18,7 @@ export type NavItemKey =
   | 'analysis'
   | 'learning'
   | 'investigation'
-  | 'copilot'
+  | 'assistant'
   | 'settings'
 
 interface SidebarProps {
@@ -41,7 +41,7 @@ const menuItems: MenuItem[] = [
   { key: 'analysis', label: 'Traffic Analysis', icon: Activity },
   { key: 'learning', label: 'Learning Center', icon: GraduationCap, badge: 'Beginner' },
   { key: 'investigation', label: 'Security Investigation', icon: ShieldAlert },
-  { key: 'copilot', label: 'AI Network Copilot', icon: Sparkles, badge: 'AI' },
+  { key: 'assistant', label: 'OpenAI Assistant', icon: Sparkles, badge: 'AI' },
   { key: 'settings', label: 'Settings', icon: Settings },
 ]
 

@@ -6,8 +6,9 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from .analyzer import analyze_pcap_with_tshark, get_tshark_version, save_upload_to_temp
+from .assistant import answer_question
 from .config import settings
-from .models import AnalysisResponse, HealthResponse
+from .models import AnalysisResponse, AssistantQuestionRequest, AssistantResponse, HealthResponse
 
 
 @asynccontextmanager
@@ -95,6 +96,17 @@ async def analyze_capture(
                 os.unlink(temp_path)
             except OSError:
                 pass
+
+
+@app.post(
+    "/api/assistant/ask",
+    response_model=AssistantResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["OpenAI Assistant"],
+)
+async def ask_assistant(request: AssistantQuestionRequest) -> AssistantResponse:
+    """Answer a beginner-friendly question from bounded capture evidence."""
+    return await answer_question(request)
 
 
 if __name__ == "__main__":

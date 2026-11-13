@@ -13,8 +13,8 @@ import { GlassCard } from './components/ui/GlassCard'
 import { ProtocolBadge } from './components/ui/Badge'
 import { LearningCenter } from './components/learning/LearningCenter'
 import { PacketIntelPanel } from './components/learning/PacketIntelPanel'
-import { checkBackendHealth } from './services/api'
-import type { AnalysisResponse, Packet } from './types'
+import { askOpenAIAssistant, checkBackendHealth } from './services/api'
+import type { AnalysisResponse, AssistantConversationMessage, AssistantQuestionRequest, Packet } from './types'
 import {
   UploadCloud,
   Radio,
@@ -48,6 +48,12 @@ export default function App() {
   const [explorerSearch, setExplorerSearch] = useState('')
   const [protocolFilter, setProtocolFilter] = useState<string>('ALL')
   const [selectedPacket, setSelectedPacket] = useState<Packet | null>(null)
+  const [findingSeverityFilter, setFindingSeverityFilter] = useState('ALL')
+  const [findingRuleFilter, setFindingRuleFilter] = useState('ALL')
+  const [assistantMessages, setAssistantMessages] = useState<AssistantConversationMessage[]>([])
+  const [assistantQuestion, setAssistantQuestion] = useState('')
+  const [assistantLoading, setAssistantLoading] = useState(false)
+  const [assistantError, setAssistantError] = useState<string | null>(null)
 
   // Check backend health on initial mount
   useEffect(() => {
@@ -65,6 +71,8 @@ export default function App() {
 
   const handleAnalysisSuccess = (data: AnalysisResponse) => {
     setAnalysisData(data)
+    setAssistantMessages([])
+    setAssistantError(null)
 
     // Add to recent captures list
     const formatDuration = (sec: number) => {
@@ -111,6 +119,74 @@ export default function App() {
       return matchesProto && matchesSearch
     })
   }, [analysisData, protocolFilter, explorerSearch])
+
+  const filteredFindings = useMemo(() => {
+    if (!analysisData) return []
+    return analysisData.findings.filter((finding) => (
+      (findingSeverityFilter === 'ALL' || finding.severity === findingSeverityFilter) &&
+      (findingRuleFilter === 'ALL' || finding.ruleId === findingRuleFilter)
+    ))
+  }, [analysisData, findingRuleFilter, findingSeverityFilter])
+
+  const inspectFindingPacket = (packetId: number) => {
+    const packet = analysisData?.packets.find((candidate) => candidate.id === packetId)
+    setSelectedPacket(packet ?? null)
+    setExplorerSearch(String(packetId))
+    setProtocolFilter('ALL')
+    setCurrentView('explorer')
+  }
+
+  const askAssistant = async () => {
+    const question = assistantQuestion.trim()
+    if (!question || assistantLoading) return
+    if (!analysisData) {
+      setAssistantError('Upload a PCAP or PCAPNG before asking about capture evidence.')
+      return
+    }
+
+    const userMessage: AssistantConversationMessage = { role: 'user', content: question }
+    setAssistantQuestion('')
+    setAssistantError(null)
+    setAssistantMessages((previous) => [...previous, userMessage])
+    setAssistantLoading(true)
+
+    const selectedPacketContext = selectedPacket
+      ? {
+          id: selectedPacket.id,
+          timestamp: selectedPacket.timestamp,
+          sourceIp: selectedPacket.sourceIp,
+          destinationIp: selectedPacket.destinationIp,
+          sourcePort: selectedPacket.sourcePort,
+          destinationPort: selectedPacket.destinationPort,
+          protocol: selectedPacket.protocol,
+          length: selectedPacket.length,
+          tcpFlags: selectedPacket.tcpFlags,
+        }
+      : undefined
+    const request: AssistantQuestionRequest = {
+      question,
+      context: {
+        fileName: analysisData.metadata.fileName,
+        format: analysisData.metadata.format,
+        totalPackets: analysisData.metadata.totalPackets,
+        returnedPackets: analysisData.metadata.returnedPackets,
+        durationSeconds: analysisData.metadata.durationSeconds,
+        protocols: analysisData.protocolCounts,
+        selectedPacket: selectedPacketContext,
+        findings: analysisData.findings,
+      },
+      conversation: [...assistantMessages, userMessage].slice(-8),
+    }
+
+    try {
+      const response = await askOpenAIAssistant(request)
+      setAssistantMessages((previous) => [...previous, { role: 'assistant', content: response.answer }])
+    } catch (error: unknown) {
+      setAssistantError(error instanceof Error ? error.message : 'The OpenAI Assistant is unavailable.')
+    } finally {
+      setAssistantLoading(false)
+    }
+  }
 
   return (
     <DashboardLayout
@@ -640,11 +716,36 @@ export default function App() {
             <GlassCard className="p-8 text-center space-y-2">
               <CheckCircle2 className="w-8 h-8 text-cyber-neon mx-auto" />
               <h3 className="text-sm font-semibold text-white">No findings</h3>
-              <p className="text-xs text-cyber-muted">No potential TCP port scan met the configured evidence threshold in {analysisData.metadata.fileName}.</p>
+              <p className="text-xs text-cyber-muted">No potential finding met the configured evidence thresholds in {analysisData.metadata.fileName}.</p>
             </GlassCard>
           ) : (
             <div className="space-y-4">
-              {analysisData.findings.map((finding) => (
+              <GlassCard className="p-4 flex flex-col md:flex-row md:items-center gap-3">
+                <div className="flex items-center gap-2 text-xs font-mono text-cyber-muted">
+                  <Filter className="w-3.5 h-3.5 text-cyber-blue" />
+                  Severity:
+                  <select value={findingSeverityFilter} onChange={(e) => setFindingSeverityFilter(e.target.value)} className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-cyber-text focus:outline-none focus:border-cyber-blue">
+                    <option value="ALL">All severities</option>
+                    {['critical', 'high', 'medium', 'low', 'info'].map((severity) => <option key={severity} value={severity}>{severity}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-mono text-cyber-muted">
+                  Rule:
+                  <select value={findingRuleFilter} onChange={(e) => setFindingRuleFilter(e.target.value)} className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-cyber-text focus:outline-none focus:border-cyber-blue">
+                    <option value="ALL">All rules</option>
+                    {[...new Set(analysisData.findings.map((finding) => finding.ruleId))].map((ruleId) => <option key={ruleId} value={ruleId}>{ruleId}</option>)}
+                  </select>
+                </div>
+                <span className="text-[11px] font-mono text-cyber-muted md:ml-auto">Showing {filteredFindings.length} of {analysisData.findings.length} potential findings</span>
+              </GlassCard>
+
+              {filteredFindings.length === 0 ? (
+                <GlassCard className="p-8 text-center space-y-2">
+                  <Filter className="w-7 h-7 text-cyber-muted mx-auto" />
+                  <h3 className="text-sm font-semibold text-white">No matching findings</h3>
+                  <p className="text-xs text-cyber-muted">Adjust the severity or rule filter to review other potential findings.</p>
+                </GlassCard>
+              ) : filteredFindings.map((finding) => (
                 <GlassCard key={finding.id} className="p-6 space-y-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3">
@@ -653,6 +754,7 @@ export default function App() {
                       </div>
                       <div>
                         <h3 className="text-sm font-bold text-white">{finding.title}</h3>
+                        <div className="text-[11px] text-cyber-neon font-mono">{finding.ruleName}</div>
                         <span className="text-[11px] text-cyber-muted font-mono">
                           Rule ID: {finding.ruleId} • Severity: {finding.severity}
                         </span>
@@ -671,8 +773,15 @@ export default function App() {
                       <div>Source: <span className="text-white">{finding.sourceIp}</span></div>
                       <div>Destination: <span className="text-white">{finding.destinationIp}</span></div>
                       <div>Ports: <span className="text-white">{finding.observedDestinationPorts.join(', ')}</span></div>
-                      <div>Packets: <span className="text-white">{finding.packetCount}</span> • IDs: <span className="text-white">{finding.relevantPacketIds.join(', ')}</span></div>
+                      <div>Packets: <span className="text-white">{finding.packetCount}</span></div>
+                      <div className="flex flex-wrap items-center gap-1">Evidence IDs:
+                        {finding.relevantPacketIds.map((packetId) => {
+                          const available = analysisData.packets.some((packet) => packet.id === packetId)
+                          return <button key={packetId} onClick={() => inspectFindingPacket(packetId)} className={`underline underline-offset-2 ${available ? 'text-cyber-neon hover:text-white' : 'text-amber-300 hover:text-white'}`} title={available ? 'Open packet in Packet Explorer' : 'Packet is outside the returned packet list; open Explorer to search it'}>#{packetId}{!available && ' *'}</button>
+                        })}
+                      </div>
                       <div>Window: <span className="text-white">{finding.timeWindow.startSeconds.toFixed(3)}s–{finding.timeWindow.endSeconds.toFixed(3)}s ({finding.timeWindow.durationSeconds.toFixed(3)}s)</span></div>
+                      {finding.relevantPacketIds.some((packetId) => !analysisData.packets.some((packet) => packet.id === packetId)) && <div className="text-amber-300">* Packet is not in the {analysisData.metadata.returnedPackets} records returned to the UI; the finding still uses full-capture evidence.</div>}
                     </div>
                     <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1.5">
                       <div className="text-cyber-neon font-semibold">Recommended Analyst Steps</div>
@@ -688,34 +797,63 @@ export default function App() {
         </div>
       )}
 
-      {/* AI Network Copilot View */}
-      {currentView === 'copilot' && (
+      {/* OpenAI Assistant View */}
+      {currentView === 'assistant' && (
         <div className="space-y-6 max-w-7xl mx-auto">
           <div className="flex items-center justify-between pb-3 border-b border-white/5">
             <div>
               <h1 className="text-2xl font-bold text-white flex items-center gap-2">
                 <Sparkles className="w-6 h-6 text-cyber-neon" />
-                AI Network Copilot
+                OpenAI Assistant
               </h1>
               <p className="text-xs text-cyber-muted mt-1">
-                Contextual AI assistance powered by OpenAI API for packet explanation and threat triage.
+                Ask beginner-friendly questions about the loaded capture and its potential findings.
               </p>
             </div>
+            <CyberButton variant="outline" size="sm" onClick={() => { setAssistantMessages([]); setAssistantError(null) }}>
+              New conversation
+            </CyberButton>
           </div>
 
-          <GlassCard className="p-8 text-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-cyber-neon/15 border border-cyber-neon/40 flex items-center justify-center text-cyber-neon mx-auto shadow-lg shadow-cyber-neon/10">
-              <Sparkles className="w-7 h-7" />
+          <GlassCard className="p-4 space-y-4">
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2 text-cyber-muted">
+                <span className={`w-2 h-2 rounded-full ${analysisData ? 'bg-cyber-neon' : 'bg-amber-400'}`} />
+                {analysisData ? `Context: ${analysisData.metadata.fileName}` : 'No capture loaded'}
+              </div>
+              <span className="text-[10px] font-mono text-cyber-muted">Structured metadata only · no PCAP or payloads sent</span>
             </div>
-            <div className="max-w-md mx-auto space-y-2">
-              <h3 className="text-base font-semibold text-white">AI Copilot Architecture</h3>
-              <p className="text-xs text-cyber-muted leading-relaxed">
-                The Copilot receives structured detection evidence from the backend rather than raw binaries to protect user privacy and avoid AI hallucination.
-              </p>
+
+            <div className="min-h-56 max-h-[420px] overflow-y-auto rounded-xl bg-black/30 border border-white/10 p-4 space-y-3">
+              {assistantMessages.length === 0 ? (
+                <div className="space-y-3 text-center py-8">
+                  <Sparkles className="w-8 h-8 text-cyber-neon mx-auto" />
+                  <h3 className="text-sm font-semibold text-white">What would you like to understand?</h3>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {['What happened in this capture?', 'Explain the potential findings', 'What should I inspect next?'].map((suggestion) => (
+                      <button key={suggestion} onClick={() => setAssistantQuestion(suggestion)} className="text-xs text-cyber-muted hover:text-cyber-neon border border-white/10 hover:border-cyber-neon/40 rounded-lg px-3 py-2 text-left">
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : assistantMessages.map((message, index) => (
+                <div key={`${message.role}-${index}`} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${message.role === 'user' ? 'bg-cyber-blue/30 text-white border border-cyber-blue/40' : 'bg-cyber-surface text-cyber-text border border-cyber-neon/20'}`}>
+                    <div className="text-[10px] font-mono text-cyber-muted mb-1">{message.role === 'user' ? 'You' : 'OpenAI Assistant'}</div>
+                    {message.content}
+                  </div>
+                </div>
+              ))}
+              {assistantLoading && <div className="text-xs text-cyber-muted animate-pulse">OpenAI Assistant is reviewing the supplied evidence…</div>}
             </div>
-            <div className="pt-2 flex justify-center">
-              <CyberButton variant="blue" size="sm" onClick={() => setCurrentView('overview')}>
-                Back to Dashboard
+
+            {assistantError && <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-200 text-xs p-3">{assistantError}<div className="mt-1 text-amber-100/70">Configure OPENAI_API_KEY and OPENAI_MODEL in backend/.env; never paste the key into this chat.</div></div>}
+
+            <div className="flex gap-2">
+              <input value={assistantQuestion} onChange={(event) => setAssistantQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void askAssistant() }} maxLength={2000} placeholder={analysisData ? 'Ask about the current capture…' : 'Load a capture to begin'} disabled={!analysisData || assistantLoading} className="flex-1 rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-cyber-muted focus:outline-none focus:border-cyber-neon disabled:opacity-50" />
+              <CyberButton variant="neon" size="sm" onClick={() => void askAssistant()} disabled={!analysisData || assistantLoading || !assistantQuestion.trim()}>
+                Ask
               </CyberButton>
             </div>
           </GlassCard>

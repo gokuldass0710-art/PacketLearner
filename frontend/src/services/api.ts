@@ -1,4 +1,4 @@
-import type { AnalysisResponse, BackendHealth } from '../types'
+import type { AnalysisResponse, AssistantQuestionRequest, AssistantResponse, BackendHealth } from '../types'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -74,6 +74,34 @@ export async function uploadAndAnalyzeCapture(
       err instanceof Error
         ? err.message
         : 'Failed to connect to the packet processing backend.'
+    throw new ApiError(msg, 0)
+  }
+}
+
+export async function askOpenAIAssistant(
+  request: AssistantQuestionRequest
+): Promise<AssistantResponse> {
+  try {
+    const res = await fetch(`${API_BASE}/api/assistant/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(request),
+    })
+
+    if (!res.ok) {
+      let errorMsg = `Assistant request failed (${res.status})`
+      try {
+        const errorJson = await res.json()
+        if (errorJson?.detail) errorMsg = errorJson.detail
+      } catch {
+        // Keep the safe status-based fallback.
+      }
+      throw new ApiError(errorMsg, res.status)
+    }
+    return await res.json()
+  } catch (err: unknown) {
+    if (err instanceof ApiError) throw err
+    const msg = err instanceof Error ? err.message : 'Failed to connect to the OpenAI Assistant backend.'
     throw new ApiError(msg, 0)
   }
 }

@@ -179,6 +179,42 @@ export interface DetectionFinding {
   recommendedSteps: string[]
 }
 
+export interface AssistantPacketContext {
+  id: number
+  timestamp: number
+  sourceIp: string
+  destinationIp: string
+  sourcePort?: number
+  destinationPort?: number
+  protocol: string
+  length: number
+  tcpFlags?: TCPFlags
+}
+
+export interface AssistantConversationMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface AssistantQuestionRequest {
+  question: string
+  context: {
+    fileName: string
+    format: string
+    totalPackets: number
+    returnedPackets: number
+    durationSeconds: number
+    protocols: ProtocolCountItem[]
+    selectedPacket?: AssistantPacketContext
+    findings: DetectionFinding[]
+  }
+  conversation: AssistantConversationMessage[]
+}
+
+export interface AssistantResponse {
+  answer: string
+}
+
 export interface BackendHealth {
   status: string
   tshark_installed: boolean

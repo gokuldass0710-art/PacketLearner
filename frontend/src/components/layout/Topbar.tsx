@@ -23,7 +23,7 @@ const viewTitles: Record<NavItemKey, { title: string; category: string }> = {
   analysis: { title: 'Traffic Analysis', category: 'Visualizations' },
   learning: { title: 'Beginner Learning Center', category: 'Education' },
   investigation: { title: 'Security Investigation', category: 'Threat Detection' },
-  copilot: { title: 'AI Network Copilot', category: 'Intelligence' },
+  assistant: { title: 'OpenAI Assistant', category: 'Intelligence' },
   settings: { title: 'Platform Settings', category: 'Preferences' },
 }
 
