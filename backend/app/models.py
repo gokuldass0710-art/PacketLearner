@@ -141,12 +141,20 @@ class AssistantQuestionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     question: str = Field(..., min_length=1, max_length=2000)
+    provider: Optional[Literal["openai", "ollama"]] = None
     context: AssistantCaptureContext
     conversation: List[AssistantConversationMessage] = Field(default_factory=list, max_length=8)
 
 
 class AssistantResponse(BaseModel):
     answer: str
+
+
+class AssistantConfigResponse(BaseModel):
+    provider: Literal["openai", "ollama"]
+    model: str
+    ollama_model: str
+    ollama_base_url: str
 
 
 class ErrorResponse(BaseModel):

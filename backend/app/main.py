@@ -1,4 +1,5 @@
 import os
+import time
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -6,9 +7,11 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from .analyzer import analyze_pcap_with_tshark, get_tshark_version, save_upload_to_temp
-from .assistant import answer_question
+from .assistant import answer_question, configured_provider
 from .config import settings
-from .models import AnalysisResponse, AssistantQuestionRequest, AssistantResponse, HealthResponse
+from .models import AnalysisResponse, AssistantConfigResponse, AssistantQuestionRequest, AssistantResponse, HealthResponse
+from .capture import capture_manager
+from .capture_models import CaptureInterfaceResponse, CaptureStartRequest, CaptureStatusResponse
 
 
 @asynccontextmanager
@@ -21,7 +24,10 @@ async def lifespan(app: FastAPI):
     else:
         print(f"[PacketLearner WARNING] TShark not found at configured path: {path}")
         print("[PacketLearner WARNING] Install Wireshark or set TSHARK_PATH in backend/.env")
-    yield
+    try:
+        yield
+    finally:
+        capture_manager.cleanup()
 
 
 app = FastAPI(
@@ -107,6 +113,48 @@ async def analyze_capture(
 async def ask_assistant(request: AssistantQuestionRequest) -> AssistantResponse:
     """Answer a beginner-friendly question from bounded capture evidence."""
     return await answer_question(request)
+
+
+@app.get("/api/assistant/config", response_model=AssistantConfigResponse, tags=["Assistant"])
+def get_assistant_config() -> AssistantConfigResponse:
+    provider = configured_provider()
+    return AssistantConfigResponse(
+        provider=provider,
+        model=settings.OPENAI_MODEL if provider == "openai" else settings.OLLAMA_MODEL,
+        ollama_model=settings.OLLAMA_MODEL,
+        ollama_base_url=settings.OLLAMA_BASE_URL,
+    )
+
+
+@app.get("/api/capture/interfaces", response_model=list[CaptureInterfaceResponse], tags=["Capture Agent"])
+def capture_interfaces() -> list[CaptureInterfaceResponse]:
+    return [CaptureInterfaceResponse(id=item.id, name=item.name, description=item.description) for item in capture_manager.list_interfaces()]
+
+
+@app.get("/api/capture/status", response_model=CaptureStatusResponse, tags=["Capture Agent"])
+def capture_status() -> CaptureStatusResponse:
+    session, error = capture_manager.status()
+    if session is None:
+        return CaptureStatusResponse(status="error" if error else "idle", duration_limit_seconds=settings.CAPTURE_DURATION_SECONDS, max_size_mb=settings.CAPTURE_MAX_SIZE_MB, error=error)
+    return CaptureStatusResponse(status="running" if session.process.poll() is None else "ready", interface_id=session.interface_id, started_at=None, elapsed_seconds=round(time.monotonic() - session.started_at, 1), duration_limit_seconds=settings.CAPTURE_DURATION_SECONDS, max_size_mb=settings.CAPTURE_MAX_SIZE_MB, error=error)
+
+
+@app.post("/api/capture/start", response_model=CaptureStatusResponse, status_code=201, tags=["Capture Agent"])
+def start_capture(request: CaptureStartRequest) -> CaptureStatusResponse:
+    session = capture_manager.start(request.interface_id)
+    return CaptureStatusResponse(status="running", interface_id=session.interface_id, elapsed_seconds=0, duration_limit_seconds=settings.CAPTURE_DURATION_SECONDS, max_size_mb=settings.CAPTURE_MAX_SIZE_MB)
+
+
+@app.post("/api/capture/stop", response_model=AnalysisResponse, tags=["Capture Agent"])
+def stop_capture(max_packets: int = Query(settings.DEFAULT_PACKET_LIMIT, ge=1, le=settings.MAX_PACKET_LIMIT)) -> AnalysisResponse:
+    path = capture_manager.stop()
+    try:
+        return analyze_pcap_with_tshark(path, path.name, path.stat().st_size, "pcapng", max_packets)
+    finally:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 if __name__ == "__main__":

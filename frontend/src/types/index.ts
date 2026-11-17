@@ -198,6 +198,7 @@ export interface AssistantConversationMessage {
 
 export interface AssistantQuestionRequest {
   question: string
+  provider?: AssistantProvider
   context: {
     fileName: string
     format: string
@@ -211,6 +212,15 @@ export interface AssistantQuestionRequest {
   conversation: AssistantConversationMessage[]
 }
 
+export type AssistantProvider = 'openai' | 'ollama'
+
+export interface AssistantConfig {
+  provider: AssistantProvider
+  model: string
+  ollama_model: string
+  ollama_base_url: string
+}
+
 export interface AssistantResponse {
   answer: string
 }
@@ -220,6 +230,22 @@ export interface BackendHealth {
   tshark_installed: boolean
   tshark_path: string
   tshark_version?: string | null
+}
+
+export interface CaptureInterface {
+  id: string
+  name: string
+  description: string
+}
+
+export interface CaptureStatus {
+  status: 'idle' | 'running' | 'ready' | 'error'
+  interface_id?: string | null
+  started_at?: string | null
+  elapsed_seconds: number
+  duration_limit_seconds: number
+  max_size_mb: number
+  error?: string | null
 }
 
 export interface CaptureMetadata {

@@ -15,6 +15,7 @@ import {
 export type NavItemKey =
   | 'overview'
   | 'explorer'
+  | 'capture'
   | 'analysis'
   | 'learning'
   | 'investigation'
@@ -38,6 +39,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
   { key: 'explorer', label: 'Packet Explorer', icon: SearchCode },
+  { key: 'capture', label: 'Capture Agent', icon: Radio },
   { key: 'analysis', label: 'Traffic Analysis', icon: Activity },
   { key: 'learning', label: 'Learning Center', icon: GraduationCap, badge: 'Beginner' },
   { key: 'investigation', label: 'Security Investigation', icon: ShieldAlert },
@@ -139,7 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </nav>
 
-        {/* Live Capture Agent Status Card (Reserved for Phase 7) */}
+        {/* Live Capture Agent Status Card */}
         <div className="p-3 border-t border-white/10">
           <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-2">
             <div className="flex items-center justify-between">
@@ -149,11 +151,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </span>
               <span className="inline-flex items-center gap-1 text-[10px] font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                Phase 7
+                Local
               </span>
             </div>
             <p className="text-[11px] text-cyber-muted leading-relaxed">
-              Local TShark daemon is not running. PCAP uploads active.
+              Start a local TShark capture when you are ready.
             </p>
           </div>
         </div>

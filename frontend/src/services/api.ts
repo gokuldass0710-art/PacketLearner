@@ -1,4 +1,4 @@
-import type { AnalysisResponse, AssistantQuestionRequest, AssistantResponse, BackendHealth } from '../types'
+import type { AnalysisResponse, AssistantConfig, AssistantQuestionRequest, AssistantResponse, BackendHealth, CaptureInterface, CaptureStatus } from '../types'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -105,3 +105,29 @@ export async function askOpenAIAssistant(
     throw new ApiError(msg, 0)
   }
 }
+
+export async function getAssistantConfig(): Promise<AssistantConfig> {
+  try {
+    const res = await fetch(`${API_BASE}/api/assistant/config`, { headers: { Accept: 'application/json' } })
+    if (!res.ok) throw new ApiError(`Assistant configuration returned status ${res.status}`, res.status)
+    return await res.json()
+  } catch (err: unknown) {
+    if (err instanceof ApiError) throw err
+    throw new ApiError(err instanceof Error ? err.message : 'Assistant configuration unavailable.', 0)
+  }
+}
+
+async function captureRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, init)
+  if (!res.ok) {
+    let message = `Capture agent request failed (${res.status})`
+    try { const body = await res.json(); if (body?.detail) message = body.detail } catch { /* status fallback */ }
+    throw new ApiError(message, res.status)
+  }
+  return await res.json() as T
+}
+
+export const listCaptureInterfaces = () => captureRequest<CaptureInterface[]>('/api/capture/interfaces')
+export const getCaptureStatus = () => captureRequest<CaptureStatus>('/api/capture/status')
+export const startLocalCapture = (interfaceId: string) => captureRequest<CaptureStatus>('/api/capture/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ interface_id: interfaceId }) })
+export const stopLocalCapture = () => captureRequest<AnalysisResponse>('/api/capture/stop', { method: 'POST' })

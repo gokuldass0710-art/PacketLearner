@@ -7,14 +7,15 @@ import { ProtocolChart } from './components/dashboard/ProtocolChart'
 import { TrafficTimeline } from './components/dashboard/TrafficTimeline'
 import { RecentCaptures, type CaptureItem } from './components/dashboard/RecentCaptures'
 import { LearningCard } from './components/dashboard/LearningCard'
+import { CaptureAgentPanel } from './components/dashboard/CaptureAgentPanel'
 import { UploadModal } from './components/dashboard/UploadModal'
 import { CyberButton } from './components/ui/CyberButton'
 import { GlassCard } from './components/ui/GlassCard'
 import { ProtocolBadge } from './components/ui/Badge'
 import { LearningCenter } from './components/learning/LearningCenter'
 import { PacketIntelPanel } from './components/learning/PacketIntelPanel'
-import { askOpenAIAssistant, checkBackendHealth } from './services/api'
-import type { AnalysisResponse, AssistantConversationMessage, AssistantQuestionRequest, Packet } from './types'
+import { askOpenAIAssistant, checkBackendHealth, getAssistantConfig } from './services/api'
+import type { AnalysisResponse, AssistantConversationMessage, AssistantProvider, AssistantQuestionRequest, Packet } from './types'
 import {
   UploadCloud,
   Radio,
@@ -36,7 +37,6 @@ import {
 export default function App() {
   const [currentView, setCurrentView] = useState<NavItemKey>('overview')
   const [isUploadOpen, setIsUploadOpen] = useState(false)
-  const [liveCaptureNoticeOpen, setLiveCaptureNoticeOpen] = useState(false)
   const [backendConnected, setBackendConnected] = useState<boolean>(false)
   const [tsharkVersion, setTsharkVersion] = useState<string | null>(null)
 
@@ -54,6 +54,9 @@ export default function App() {
   const [assistantQuestion, setAssistantQuestion] = useState('')
   const [assistantLoading, setAssistantLoading] = useState(false)
   const [assistantError, setAssistantError] = useState<string | null>(null)
+  const [assistantProvider, setAssistantProvider] = useState<AssistantProvider>('openai')
+  const [assistantModel, setAssistantModel] = useState<string>('')
+  const [assistantConfigError, setAssistantConfigError] = useState<string | null>(null)
 
   // Check backend health on initial mount
   useEffect(() => {
@@ -67,6 +70,12 @@ export default function App() {
       .catch(() => {
         setBackendConnected(false)
       })
+  }, [])
+
+  useEffect(() => {
+    getAssistantConfig()
+      .then((config) => { setAssistantProvider(config.provider); setAssistantModel(config.model); setAssistantConfigError(null) })
+      .catch((error: unknown) => { setAssistantConfigError(error instanceof Error ? error.message : 'Assistant configuration unavailable.') })
   }, [])
 
   const handleAnalysisSuccess = (data: AnalysisResponse) => {
@@ -165,6 +174,7 @@ export default function App() {
       : undefined
     const request: AssistantQuestionRequest = {
       question,
+      provider: assistantProvider,
       context: {
         fileName: analysisData.metadata.fileName,
         format: analysisData.metadata.format,
@@ -182,7 +192,7 @@ export default function App() {
       const response = await askOpenAIAssistant(request)
       setAssistantMessages((previous) => [...previous, { role: 'assistant', content: response.answer }])
     } catch (error: unknown) {
-      setAssistantError(error instanceof Error ? error.message : 'The OpenAI Assistant is unavailable.')
+      setAssistantError(error instanceof Error ? error.message : 'The selected assistant provider is unavailable.')
     } finally {
       setAssistantLoading(false)
     }
@@ -201,43 +211,8 @@ export default function App() {
         onAnalysisSuccess={handleAnalysisSuccess}
       />
 
-      {/* Live Capture Offline Notice Modal */}
-      {liveCaptureNoticeOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="relative w-full max-w-md bg-cyber-surface border border-white/15 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
-                <Radio className="w-6 h-6 animate-pulse" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-white">Live Capture Agent Offline</h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  Planned for Phase 7
-                </span>
-              </div>
-            </div>
-
-            <p className="text-xs text-cyber-muted leading-relaxed">
-              Browsers cannot directly sniff physical network interfaces for security reasons. Live capture requires running the local <strong>TShark capture agent</strong> with elevated permissions.
-            </p>
-
-            <div className="p-3 rounded-xl bg-black/40 border border-white/10 text-xs font-mono space-y-1 text-cyber-text">
-              <div className="text-[11px] text-cyber-muted">Planned Agent Command:</div>
-              <code className="text-cyber-neon text-[11px] block">
-                packetlearner-agent --interface eth0 --stream ws://localhost:8000/live
-              </code>
-            </div>
-
-            <div className="pt-2 flex justify-end">
-              <CyberButton variant="blue" size="sm" onClick={() => setLiveCaptureNoticeOpen(false)}>
-                Understood
-              </CyberButton>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Main View Switching */}
+      {currentView === 'capture' && <CaptureAgentPanel onAnalysisSuccess={handleAnalysisSuccess} />}
       {currentView === 'overview' && (
         <div className="space-y-6 max-w-7xl mx-auto">
           {/* Welcome & Action Banner */}
@@ -270,8 +245,8 @@ export default function App() {
               <CyberButton
                 variant="outline"
                 size="md"
-                onClick={() => setLiveCaptureNoticeOpen(true)}
-                icon={<Radio className="w-4 h-4 text-amber-400" />}
+                onClick={() => setCurrentView('capture')}
+                icon={<Radio className="w-4 h-4 text-cyber-neon" />}
               >
                 Start Live Capture
               </CyberButton>
@@ -804,7 +779,7 @@ export default function App() {
             <div>
               <h1 className="text-2xl font-bold text-white flex items-center gap-2">
                 <Sparkles className="w-6 h-6 text-cyber-neon" />
-                OpenAI Assistant
+                {assistantProvider === 'ollama' ? 'Local Ollama Assistant' : 'OpenAI Assistant'}
               </h1>
               <p className="text-xs text-cyber-muted mt-1">
                 Ask beginner-friendly questions about the loaded capture and its potential findings.
@@ -840,15 +815,15 @@ export default function App() {
               ) : assistantMessages.map((message, index) => (
                 <div key={`${message.role}-${index}`} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${message.role === 'user' ? 'bg-cyber-blue/30 text-white border border-cyber-blue/40' : 'bg-cyber-surface text-cyber-text border border-cyber-neon/20'}`}>
-                    <div className="text-[10px] font-mono text-cyber-muted mb-1">{message.role === 'user' ? 'You' : 'OpenAI Assistant'}</div>
+                    <div className="text-[10px] font-mono text-cyber-muted mb-1">{message.role === 'user' ? 'You' : (assistantProvider === 'ollama' ? 'Local Ollama Assistant' : 'OpenAI Assistant')}</div>
                     {message.content}
                   </div>
                 </div>
               ))}
-              {assistantLoading && <div className="text-xs text-cyber-muted animate-pulse">OpenAI Assistant is reviewing the supplied evidence…</div>}
+              {assistantLoading && <div className="text-xs text-cyber-muted animate-pulse">{assistantProvider === 'ollama' ? 'Local Ollama is reviewing the supplied evidence…' : 'OpenAI Assistant is reviewing the supplied evidence…'}</div>}
             </div>
 
-            {assistantError && <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-200 text-xs p-3">{assistantError}<div className="mt-1 text-amber-100/70">Configure OPENAI_API_KEY and OPENAI_MODEL in backend/.env; never paste the key into this chat.</div></div>}
+            {assistantError && <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-200 text-xs p-3">{assistantError}<div className="mt-1 text-amber-100/70">Provider configuration stays in the backend. OpenAI keys are never sent to the frontend.</div></div>}
 
             <div className="flex gap-2">
               <input value={assistantQuestion} onChange={(event) => setAssistantQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void askAssistant() }} maxLength={2000} placeholder={analysisData ? 'Ask about the current capture…' : 'Load a capture to begin'} disabled={!analysisData || assistantLoading} className="flex-1 rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-cyber-muted focus:outline-none focus:border-cyber-neon disabled:opacity-50" />
@@ -866,11 +841,26 @@ export default function App() {
           <div className="flex items-center justify-between pb-3 border-b border-white/5">
             <div>
               <h1 className="text-2xl font-bold text-white">Platform Settings</h1>
-              <p className="text-xs text-cyber-muted mt-1">Configure capture parameters and display options.</p>
+              <p className="text-xs text-cyber-muted mt-1">Configure capture parameters, assistant provider, and display options.</p>
             </div>
           </div>
 
           <GlassCard className="p-6 space-y-4 text-xs">
+            <div className="py-2 border-b border-white/5 space-y-3">
+              <div>
+                <span className="font-semibold text-white block">Assistant provider</span>
+                <span className="text-cyber-muted text-[11px]">Choose whether bounded structured evidence is handled by OpenAI or your local Ollama service.</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <select value={assistantProvider} onChange={(event) => setAssistantProvider(event.target.value as AssistantProvider)} className="rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-xs text-white">
+                  <option value="openai">OpenAI</option>
+                  <option value="ollama">Local Ollama</option>
+                </select>
+                <span className="text-cyber-muted font-mono">Model: <span className="text-white">{assistantModel || 'configured in backend/.env'}</span></span>
+              </div>
+              <p className="text-[11px] text-cyber-muted">Ollama is restricted to http://127.0.0.1:11434 and requires no API key. Set its local model name in backend/.env.</p>
+              {assistantConfigError && <p className="text-[11px] text-amber-300">{assistantConfigError}</p>}
+            </div>
             <div className="flex items-center justify-between py-2 border-b border-white/5">
               <div>
                 <span className="font-semibold text-white block">TShark Packet Decoder</span>

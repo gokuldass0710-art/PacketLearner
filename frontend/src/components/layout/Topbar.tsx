@@ -20,6 +20,7 @@ interface TopbarProps {
 const viewTitles: Record<NavItemKey, { title: string; category: string }> = {
   overview: { title: 'Dashboard Overview', category: 'Monitor' },
   explorer: { title: 'Packet Explorer', category: 'Analysis' },
+  capture: { title: 'Local Capture Agent', category: 'Capture' },
   analysis: { title: 'Traffic Analysis', category: 'Visualizations' },
   learning: { title: 'Beginner Learning Center', category: 'Education' },
   investigation: { title: 'Security Investigation', category: 'Threat Detection' },

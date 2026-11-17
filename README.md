@@ -474,6 +474,12 @@ tshark --version
 
 If Windows cannot recognize the command, add the Wireshark installation directory to the system PATH or configure the TShark executable path in the backend environment.
 
+### 5. Use the local Capture Agent (Phase 7)
+
+Phase 7 captures only on the computer running the local FastAPI backend. Install Wireshark with TShark and its packet-capture driver (Npcap on Windows), start the backend and frontend, then open **Capture Agent** from the sidebar. Refresh the interface list, select an interface, and press **Start capture**. Press **Stop and analyze** when finished; the resulting temporary PCAPNG is passed to the existing `/api/captures/analyze` pipeline and then deleted.
+
+The agent does not capture on startup, does not enable promiscuous mode by default, and does not send raw packet contents to OpenAI or another external service. Default limits are 60 seconds and 50 MB; configure `CAPTURE_DURATION_SECONDS` and `CAPTURE_MAX_SIZE_MB` in `backend/.env`. Capturing may require local administrator approval on Windows or capture permissions/capabilities on Linux and macOS. Capture only traffic you own or are explicitly authorized to inspect. If TShark or capture permissions are unavailable, the Capture Agent view shows an actionable error.
+
 ---
 
 ## 🔐 Environment Configuration
@@ -499,9 +505,14 @@ DATABASE_URL=postgresql://USERNAME:PASSWORD@localhost:5432/packetlearner
 REDIS_URL=redis://localhost:6379/0
 
 # OpenAI
+ASSISTANT_PROVIDER=openai
 OPENAI_API_KEY=
 OPENAI_MODEL=
 OPENAI_TIMEOUT_SECONDS=30
+
+# Optional local Ollama provider for the Assistant
+# The backend always connects to http://127.0.0.1:11434/v1.
+OLLAMA_MODEL=llama3.2:3b
 
 # Packet Processing
 TSHARK_PATH=YOUR_TSHARK_EXECUTABLE_PATH
@@ -513,7 +524,8 @@ SECRET_KEY=GENERATE_A_SECURE_RANDOM_SECRET
 **Important:**
 
 - Replace all placeholders with valid local configuration.
-- Set `OPENAI_API_KEY` and `OPENAI_MODEL` in `backend/.env` to enable the OpenAI Assistant. Use a model currently supported by your OpenAI API account.
+- Set `ASSISTANT_PROVIDER=openai`, `OPENAI_API_KEY`, and `OPENAI_MODEL` in `backend/.env` to use OpenAI. Keep the key server-side and use a model supported by your OpenAI API account.
+- To use local Ollama on Windows, install Ollama, start it, run `ollama pull llama3.2:3b`, set `ASSISTANT_PROVIDER=ollama` and `OLLAMA_MODEL=llama3.2:3b`, then restart the backend. Ollama is contacted only at `http://127.0.0.1:11434`; no Ollama API key is required and cloud/remote Ollama endpoints are not supported.
 - Never commit `.env` files to GitHub.
 - Never expose the OpenAI API key in frontend code.
 - Do not share API keys through public repositories or screenshots.
@@ -526,14 +538,14 @@ PacketLearner will use the OpenAI API through the Python backend.
 
 The AI will receive structured packet metadata and relevant detection evidence rather than unrestricted access to raw capture files.
 
-### Local OpenAI Assistant setup
+### Local Assistant setup
 
 1. Install backend dependencies with `pip install -r backend/requirements.txt`.
 2. Copy `backend/.env.example` to `backend/.env`.
-3. Set `OPENAI_API_KEY` and `OPENAI_MODEL` in `backend/.env`. Keep both values server-side; do not use a `VITE_` variable or paste the key into the frontend.
-4. Start the FastAPI backend and open the **OpenAI Assistant** view after loading a capture.
+3. Choose `ASSISTANT_PROVIDER=openai` or `ASSISTANT_PROVIDER=ollama` in `backend/.env`. For OpenAI, set `OPENAI_API_KEY` and `OPENAI_MODEL`. For Ollama on Windows, install/start Ollama and run `ollama pull <local-model>`; then set `OLLAMA_MODEL=<local-model>`. Keep OpenAI credentials server-side; do not use a `VITE_` variable or paste the key into the frontend.
+4. Start the FastAPI backend and open the **Assistant** view after loading a capture. The Settings view can switch the provider for the current browser session.
 
-If either value is missing, the assistant returns a setup message and the frontend does not fabricate an answer. Requests contain only the user question, bounded conversation text, capture summary, selected packet metadata, and Phase 5 findings. PCAP/PCAPNG files, payloads, and unrestricted packet info strings are not sent to OpenAI.
+If the selected provider is not configured, Ollama is not running, or its model is not installed, the assistant returns a setup message and the frontend does not fabricate an answer. Requests contain only the user question, bounded conversation text, capture summary, selected packet metadata, and Phase 5 findings. PCAP/PCAPNG files, payloads, and unrestricted packet info strings are not sent to OpenAI or Ollama.
 
 ### Example Evidence Context
 
