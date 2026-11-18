@@ -219,15 +219,15 @@ export default function App() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-white/5">
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-white">
-                  Network Traffic Monitor
+                <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-white">
+                  Dashboard overview
                 </h1>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-cyber-blue/20 text-cyber-neon border border-cyber-neon/30 font-mono">
-                  {analysisData ? 'TShark Live Data' : 'Phase 4 Active'}
+                  {analysisData ? 'TShark live data' : 'Demo sample'}
                 </span>
               </div>
               <p className="text-xs lg:text-sm text-cyber-muted mt-1">
-                Learn the Traffic. Understand the Threat. Designed for Cybersecurity Beginners.
+                Packet activity and protocol distribution at a glance.
               </p>
             </div>
 
@@ -259,7 +259,7 @@ export default function App() {
               <div className="flex items-center gap-2.5">
                 <CheckCircle2 className="w-5 h-5 text-cyber-neon flex-shrink-0" />
                 <div>
-                  <span className="font-semibold text-white">Active TShark Capture: </span>
+                  <span className="font-semibold text-white">Active capture: </span>
                   <span className="font-mono text-cyber-neon font-bold">
                     {analysisData.metadata.fileName}
                   </span>
@@ -281,7 +281,7 @@ export default function App() {
                   onClick={() => setAnalysisData(null)}
                   className="text-[11px] font-mono text-cyber-muted hover:text-white px-2 py-1 rounded bg-white/5 border border-white/10 hover:border-white/20"
                 >
-                  Reset Demo
+                  Clear capture
                 </button>
               </div>
             </div>
@@ -290,7 +290,7 @@ export default function App() {
               <div className="flex items-center gap-2 text-cyber-muted">
                 <Info className="w-4 h-4 text-cyber-blue flex-shrink-0" />
                 <span>
-                  <strong>Demonstration Mode:</strong> Dashboard displays illustrative sample metrics. Upload a real <code>.pcap</code> or <code>.pcapng</code> capture to decode with local TShark backend.
+                  <strong>Demonstration mode.</strong> Dashboard values are illustrative samples. Upload a <code>.pcap</code> or <code>.pcapng</code> capture to analyze it with the local TShark backend.
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -301,10 +301,10 @@ export default function App() {
                       : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
                   }`}
                 >
-                  {backendConnected ? 'Backend Connected' : 'Backend Offline'}
+                  {backendConnected ? 'Backend connected' : 'Backend offline'}
                 </span>
                 <span className="text-[10px] font-mono text-cyber-muted px-2 py-0.5 rounded bg-white/5 border border-white/10">
-                  Demo Sample
+                  Demo sample
                 </span>
               </div>
             </div>
@@ -313,7 +313,7 @@ export default function App() {
           {/* 4 Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
-              title="Packets Analyzed"
+              title="Packets analyzed"
               value={
                 analysisData
                   ? analysisData.metadata.totalPackets.toLocaleString()
@@ -333,7 +333,7 @@ export default function App() {
               accent="blue"
             />
             <StatCard
-              title="Protocol Diversity"
+              title="Protocol diversity"
               value={
                 analysisData
                   ? analysisData.protocolCounts.length
@@ -343,21 +343,21 @@ export default function App() {
               description={
                 analysisData
                   ? analysisData.protocolCounts.slice(0, 4).map((p) => p.protocol).join(', ')
-                  : 'TCP, TLS, DNS, UDP, HTTP, ARP'
+                  : 'Six network protocols'
               }
               trend={{
-                value: analysisData ? 'L2 - L7 Dissected' : 'L2 - L7',
+                  value: analysisData ? 'Layers 2 to 7' : 'Layers 2 to 7',
                 isPositive: true,
               }}
               icon={Layers}
               accent="neon"
             />
             <StatCard
-              title="Top Network Talker"
+              title="Top network talker"
               value={
                 analysisData && analysisData.topTalkers.length > 0
                   ? analysisData.topTalkers[0].ip
-                  : '—'
+                  : 'Not set'
               }
               description={
                 analysisData && analysisData.topTalkers.length > 0
@@ -372,7 +372,7 @@ export default function App() {
               accent="amber"
             />
             <StatCard
-              title="Data Volume"
+              title="Data volume"
               value={
                 analysisData
                   ? (analysisData.metadata.fileSizeBytes / 1024 / 1024).toFixed(2)
@@ -389,7 +389,7 @@ export default function App() {
                 isPositive: true,
               }}
               icon={HardDrive}
-              accent="purple"
+              accent="amber"
             />
           </div>
 
@@ -462,7 +462,7 @@ export default function App() {
                     <button
                       key={proto}
                       onClick={() => setProtocolFilter(proto)}
-                      className={`text-xs font-mono px-2.5 py-1 rounded transition-all ${
+                      className={`text-xs font-mono px-2.5 py-1 rounded transition-colors duration-150 ${
                         protocolFilter === proto
                           ? 'bg-cyber-blue text-white shadow-sm shadow-cyber-blue/40 font-bold'
                           : 'bg-white/5 text-cyber-muted hover:text-white hover:bg-white/10'
@@ -552,7 +552,7 @@ export default function App() {
                                 )}
                               </td>
                               <td className="p-3 text-center">
-                                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full border transition-all ${
+                                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full border transition-colors duration-150 ${
                                   selectedPacket?.id === pkt.id
                                     ? 'bg-cyber-blue border-cyber-blue text-white'
                                     : 'border-white/20 text-cyber-muted group-hover:border-cyber-neon group-hover:text-cyber-neon'

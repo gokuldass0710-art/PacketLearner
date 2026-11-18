@@ -13,34 +13,34 @@ interface ProtocolData {
 
 // Illustrative sample data clearly labeled as demo
 const sampleProtocolData: ProtocolData[] = [
-  { name: 'TCP', value: 3420, color: '#1558C9', percentage: 48.5 },
-  { name: 'TLS / HTTPS', value: 1850, color: '#06b6d4', percentage: 26.2 },
-  { name: 'DNS', value: 890, color: '#D4FF24', percentage: 12.6 },
-  { name: 'UDP', value: 540, color: '#a855f7', percentage: 7.7 },
-  { name: 'HTTP', value: 210, color: '#10b981', percentage: 3.0 },
-  { name: 'ARP & Other', value: 140, color: '#f59e0b', percentage: 2.0 },
+  { name: 'TCP', value: 3420, color: 'var(--color-cyber-blue)', percentage: 48.5 },
+  { name: 'TLS / HTTPS', value: 1850, color: 'var(--color-data-cyan)', percentage: 26.2 },
+  { name: 'DNS', value: 890, color: 'var(--color-cyber-neon)', percentage: 12.6 },
+  { name: 'UDP', value: 540, color: 'var(--color-data-blue-deep)', percentage: 7.7 },
+  { name: 'HTTP', value: 210, color: 'var(--color-ok)', percentage: 3.0 },
+  { name: 'ARP & Other', value: 140, color: 'var(--color-cyber-muted)', percentage: 2.0 },
 ]
 
 const PROTOCOL_COLOR_MAP: Record<string, string> = {
-  TCP: '#1558C9',
-  TLS: '#06b6d4',
-  HTTPS: '#06b6d4',
-  'TLS / HTTPS': '#06b6d4',
-  DNS: '#D4FF24',
-  UDP: '#a855f7',
-  HTTP: '#10b981',
-  ARP: '#f59e0b',
-  ICMP: '#eab308',
-  DHCP: '#6366f1',
+  TCP: 'var(--color-cyber-blue)',
+  TLS: 'var(--color-data-cyan)',
+  HTTPS: 'var(--color-data-cyan)',
+  'TLS / HTTPS': 'var(--color-data-cyan)',
+  DNS: 'var(--color-cyber-neon)',
+  UDP: 'var(--color-data-blue-deep)',
+  HTTP: 'var(--color-ok)',
+  ARP: 'var(--color-cyber-muted)',
+  ICMP: 'var(--color-cyber-neon)',
+  DHCP: 'var(--color-data-cyan)',
 }
 
 const FALLBACK_PALETTE = [
-  '#38bdf8',
-  '#f43f5e',
-  '#ec4899',
-  '#8b5cf6',
-  '#14b8a6',
-  '#84cc16',
+  'var(--color-cyber-blue)',
+  'var(--color-data-cyan)',
+  'var(--color-cyber-neon)',
+  'var(--color-data-blue-deep)',
+  'var(--color-ok)',
+  'var(--color-cyber-muted)',
 ]
 
 interface ProtocolChartProps {
@@ -72,12 +72,12 @@ export const ProtocolChart: React.FC<ProtocolChartProps> = ({
   const displayTotal = totalPackets ?? (isRealData ? chartData.reduce((acc, d) => acc + d.value, 0) : 7050)
 
   return (
-    <GlassCard className="p-5 flex flex-col justify-between">
+    <GlassCard className="p-4 flex flex-col justify-between">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-white/5">
         <div className="flex items-center gap-2">
           <PieIcon className="w-4 h-4 text-cyber-neon" />
-          <h3 className="text-sm font-semibold text-white">Protocol Distribution</h3>
+          <h3 className="text-sm font-semibold text-white">Protocol distribution</h3>
         </div>
         {isRealData ? (
           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyber-neon/15 text-cyber-neon border border-cyber-neon/30 flex items-center gap-1">
@@ -106,7 +106,7 @@ export const ProtocolChart: React.FC<ProtocolChartProps> = ({
               dataKey="value"
             >
               {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} stroke="#030407" strokeWidth={2} />
+                <Cell key={`cell-${index}`} fill={entry.color} stroke="var(--color-bg)" strokeWidth={2} />
               ))}
             </Pie>
             <Tooltip
@@ -114,7 +114,7 @@ export const ProtocolChart: React.FC<ProtocolChartProps> = ({
                 if (active && payload && payload.length) {
                   const item = payload[0].payload as ProtocolData
                   return (
-                    <div className="bg-cyber-surface/95 border border-white/15 px-3 py-2 rounded-lg shadow-xl backdrop-blur-md text-xs font-mono">
+                    <div className="bg-cyber-surface border border-white/15 px-3 py-2 rounded-md text-xs font-mono">
                       <div className="text-white font-bold">{item.name}</div>
                       <div className="text-cyber-muted">Packets: {item.value.toLocaleString()}</div>
                       <div className="text-cyber-neon font-semibold">{item.percentage}% of total</div>

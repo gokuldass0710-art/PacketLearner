@@ -71,7 +71,7 @@ export const LearningCard: React.FC<LearningCardProps> = ({ onSelectTopic }) => 
           <div
             key={topic.id}
             onClick={() => onSelectTopic?.(topic.id)}
-            className="p-4 rounded-xl bg-black/40 border border-white/10 hover:border-cyber-neon/40 hover:bg-white/[0.03] transition-all cursor-pointer flex flex-col justify-between group"
+            className="p-4 rounded-lg bg-cyber-bg border border-white/10 hover:border-cyber-neon/40 hover:bg-white/[0.03] transition-colors duration-200 cursor-pointer flex flex-col justify-between group"
           >
             <div>
               <div className="flex items-center justify-between gap-2 mb-2">

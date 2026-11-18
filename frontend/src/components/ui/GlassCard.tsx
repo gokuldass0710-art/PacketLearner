@@ -14,19 +14,19 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   ...props
 }) => {
   const baseStyles =
-    'rounded-xl backdrop-blur-md bg-cyber-surface/85 border transition-all duration-300'
+    'rounded-lg bg-cyber-surface border transition-colors duration-200'
 
   const variantStyles = {
-    default: 'border-white/10 shadow-lg shadow-black/50',
+    default: 'border-white/10',
     interactive:
-      'border-white/10 hover:border-cyber-blue/50 hover:shadow-xl hover:shadow-cyber-blue/10 cursor-pointer',
+      'border-white/10 hover:border-cyber-blue/70 cursor-pointer',
     'accent-neon':
-      'border-cyber-neon/40 shadow-lg shadow-cyber-neon/10 hover:border-cyber-neon/70',
+      'border-cyber-neon/50 hover:border-cyber-neon/80',
     'accent-blue':
-      'border-cyber-blue/40 shadow-lg shadow-cyber-blue/15 hover:border-cyber-blue/70',
+      'border-cyber-blue/50 hover:border-cyber-blue/80',
   }
 
-  const glowStyle = glow ? 'ring-1 ring-cyber-neon/20' : ''
+  const glowStyle = glow ? 'border-cyber-neon/60' : ''
 
   return (
     <div

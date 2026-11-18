@@ -84,24 +84,24 @@ export const TrafficTimeline: React.FC<TrafficTimelineProps> = ({
   const peakPackets = Math.max(...chartData.map((d) => d.packets), 0)
 
   return (
-    <GlassCard className="p-5 flex flex-col justify-between">
+    <GlassCard className="p-4 flex flex-col justify-between">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-white/5">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-cyber-blue" />
           <div>
-            <h3 className="text-sm font-semibold text-white">Network Activity Timeline</h3>
+            <h3 className="text-sm font-semibold text-white">Network activity timeline</h3>
             <p className="text-[11px] text-cyber-muted">Packet volume and throughput distribution</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {isRealData ? (
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyber-neon/15 text-cyber-neon border border-cyber-neon/30 flex items-center gap-1">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyber-neon/10 text-cyber-neon border border-cyber-neon/40 flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3 text-cyber-neon" />
               {Math.round(durationSeconds)}s Capture
             </span>
           ) : (
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-cyber-muted border border-white/10 flex items-center gap-1">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-transparent text-cyber-muted border border-white/10 flex items-center gap-1">
               <Clock className="w-3 h-3 text-cyber-neon" />
               60s Sample Window
             </span>
@@ -115,36 +115,36 @@ export const TrafficTimeline: React.FC<TrafficTimelineProps> = ({
           <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="packetGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#1558C9" stopOpacity={0.6} />
-                <stop offset="95%" stopColor="#1558C9" stopOpacity={0.0} />
+                <stop offset="5%" stopColor="var(--color-cyber-blue)" stopOpacity={0.22} />
+                <stop offset="95%" stopColor="var(--color-cyber-blue)" stopOpacity={0.0} />
               </linearGradient>
               <linearGradient id="bytesGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#D4FF24" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="#D4FF24" stopOpacity={0.0} />
+                <stop offset="5%" stopColor="var(--color-cyber-neon)" stopOpacity={0.16} />
+                <stop offset="95%" stopColor="var(--color-cyber-neon)" stopOpacity={0.0} />
               </linearGradient>
             </defs>
 
-            <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-rule)" vertical={false} />
 
             <XAxis
               dataKey="time"
-              stroke="#666666"
+              stroke="var(--color-muted)"
               fontSize={11}
               tickLine={false}
-              axisLine={{ stroke: '#333333' }}
+              axisLine={{ stroke: 'var(--color-rule-strong)' }}
             />
             <YAxis
-              stroke="#666666"
+              stroke="var(--color-muted)"
               fontSize={11}
               tickLine={false}
-              axisLine={{ stroke: '#333333' }}
+              axisLine={{ stroke: 'var(--color-rule-strong)' }}
             />
 
             <Tooltip
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="bg-cyber-surface/95 border border-white/15 px-3 py-2 rounded-lg shadow-xl backdrop-blur-md text-xs font-mono space-y-1">
+                    <div className="bg-cyber-surface border border-white/15 px-3 py-2 rounded-md text-xs font-mono space-y-1">
                       <div className="text-cyber-muted border-b border-white/10 pb-1">
                         Time: {label}
                       </div>
@@ -166,7 +166,7 @@ export const TrafficTimeline: React.FC<TrafficTimelineProps> = ({
             <Area
               type="monotone"
               dataKey="packets"
-              stroke="#1558C9"
+              stroke="var(--color-cyber-blue)"
               strokeWidth={2}
               fillOpacity={1}
               fill="url(#packetGradient)"
@@ -174,7 +174,7 @@ export const TrafficTimeline: React.FC<TrafficTimelineProps> = ({
             <Area
               type="monotone"
               dataKey="bytesKb"
-              stroke="#D4FF24"
+              stroke="var(--color-cyber-neon)"
               strokeWidth={1.5}
               fillOpacity={1}
               fill="url(#bytesGradient)"

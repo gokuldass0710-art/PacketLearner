@@ -87,7 +87,7 @@ export const RecentCaptures: React.FC<RecentCapturesProps> = ({
         {displayList.map((capture) => (
           <div
             key={capture.id}
-            className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white/[0.02] -mx-2 px-2 rounded-lg transition-colors group cursor-pointer"
+            className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white/[0.02] -mx-2 px-2 rounded-lg transition-colors duration-200 group cursor-pointer"
             onClick={() => onSelectCapture?.(capture.id)}
           >
             <div className="flex items-start gap-3">
@@ -142,7 +142,7 @@ export const RecentCaptures: React.FC<RecentCapturesProps> = ({
               </span>
 
               <button
-                className="p-1.5 rounded-md text-cyber-muted group-hover:text-cyber-neon group-hover:bg-cyber-neon/10 border border-transparent group-hover:border-cyber-neon/30 transition-all"
+                className="p-1.5 rounded-md text-cyber-muted group-hover:text-cyber-neon group-hover:bg-cyber-neon/10 border border-transparent group-hover:border-cyber-neon/30 transition-colors duration-200"
                 title="Inspect Capture"
               >
                 <ArrowUpRight className="w-4 h-4" />
