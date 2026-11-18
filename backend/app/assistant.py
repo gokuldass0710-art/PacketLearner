@@ -2,6 +2,8 @@
 
 import asyncio
 import json
+import urllib.error
+import urllib.request
 from typing import Literal
 
 from fastapi import HTTPException, status
@@ -63,6 +65,52 @@ def _ask_openai(request: AssistantQuestionRequest, context_json: str, conversati
     return answer
 
 
+def _response_text(content: object) -> str:
+    """Extract text from Ollama/OpenAI-compatible message content."""
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        parts = [item.get("text", "") for item in content if isinstance(item, dict)]
+        return "".join(part for part in parts if isinstance(part, str)).strip()
+    return ""
+
+
+def _ask_ollama_native(model: str, prompt: str) -> str:
+    """Use Ollama's native API as a local-only fallback for empty compatible responses."""
+    payload = json.dumps(
+        {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": ASSISTANT_INSTRUCTIONS},
+                {"role": "user", "content": prompt},
+            ],
+            "stream": False,
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        "http://127.0.0.1:11434/api/chat",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=settings.OPENAI_TIMEOUT_SECONDS) as response:
+            body = json.load(response)
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Local Ollama is unavailable at http://127.0.0.1:11434. Start Ollama on this Windows machine and try again.",
+        ) from exc
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Ollama returned an invalid response. Try again.",
+        ) from exc
+
+    message = body.get("message") if isinstance(body, dict) else None
+    return _response_text(message.get("content")) if isinstance(message, dict) else ""
+
+
 def _ask_ollama(request: AssistantQuestionRequest, context_json: str, conversation_json: str) -> str:
     model = settings.OLLAMA_MODEL
     if not model:
@@ -80,9 +128,11 @@ def _ask_ollama(request: AssistantQuestionRequest, context_json: str, conversati
         response = client.chat.completions.create(model=model, messages=[{"role": "system", "content": ASSISTANT_INSTRUCTIONS}, {"role": "user", "content": _input_text(request, context_json, conversation_json)}])
     except APIConnectionError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Local Ollama is unavailable at http://127.0.0.1:11434. Start Ollama on this Windows machine and try again.") from exc
-    answer = (response.choices[0].message.content or "").strip() if response.choices else ""
+    answer = _response_text(response.choices[0].message.content) if response.choices else ""
     if not answer:
-        raise RuntimeError("Ollama returned no text.")
+        answer = _ask_ollama_native(model, _input_text(request, context_json, conversation_json))
+    if not answer:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Ollama returned no text. Try again.")
     return answer
 
 
