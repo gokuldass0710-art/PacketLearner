@@ -128,11 +128,15 @@ def get_assistant_config() -> AssistantConfigResponse:
 
 @app.get("/api/capture/interfaces", response_model=list[CaptureInterfaceResponse], tags=["Capture Agent"])
 def capture_interfaces() -> list[CaptureInterfaceResponse]:
+    if not settings.ENABLE_LOCAL_CAPTURE:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Local capture is disabled on this hosted backend. Run PacketLearner's backend locally on the computer that owns the traffic.")
     return [CaptureInterfaceResponse(id=item.id, name=item.name, description=item.description) for item in capture_manager.list_interfaces()]
 
 
 @app.get("/api/capture/status", response_model=CaptureStatusResponse, tags=["Capture Agent"])
 def capture_status() -> CaptureStatusResponse:
+    if not settings.ENABLE_LOCAL_CAPTURE:
+        return CaptureStatusResponse(status="disabled", duration_limit_seconds=settings.CAPTURE_DURATION_SECONDS, max_size_mb=settings.CAPTURE_MAX_SIZE_MB, error="Local capture is disabled on this hosted backend.")
     session, error = capture_manager.status()
     if session is None:
         return CaptureStatusResponse(status="error" if error else "idle", duration_limit_seconds=settings.CAPTURE_DURATION_SECONDS, max_size_mb=settings.CAPTURE_MAX_SIZE_MB, error=error)
@@ -141,12 +145,16 @@ def capture_status() -> CaptureStatusResponse:
 
 @app.post("/api/capture/start", response_model=CaptureStatusResponse, status_code=201, tags=["Capture Agent"])
 def start_capture(request: CaptureStartRequest) -> CaptureStatusResponse:
+    if not settings.ENABLE_LOCAL_CAPTURE:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Local capture is disabled on this hosted backend. Run PacketLearner's backend locally on the computer that owns the traffic.")
     session = capture_manager.start(request.interface_id)
     return CaptureStatusResponse(status="running", interface_id=session.interface_id, elapsed_seconds=0, duration_limit_seconds=settings.CAPTURE_DURATION_SECONDS, max_size_mb=settings.CAPTURE_MAX_SIZE_MB)
 
 
 @app.post("/api/capture/stop", response_model=AnalysisResponse, tags=["Capture Agent"])
 def stop_capture(max_packets: int = Query(settings.DEFAULT_PACKET_LIMIT, ge=1, le=settings.MAX_PACKET_LIMIT)) -> AnalysisResponse:
+    if not settings.ENABLE_LOCAL_CAPTURE:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Local capture is disabled on this hosted backend. Run PacketLearner's backend locally on the computer that owns the traffic.")
     path = capture_manager.stop()
     try:
         return analyze_pcap_with_tshark(path, path.name, path.stat().st_size, "pcapng", max_packets)

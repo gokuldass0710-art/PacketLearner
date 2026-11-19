@@ -32,6 +32,11 @@ def get_default_tshark_path() -> str:
 
 
 class Settings:
+    APP_ENV: str = os.getenv("APP_ENV", "development").strip().lower()
+    ENABLE_LOCAL_CAPTURE: bool = os.getenv(
+        "ENABLE_LOCAL_CAPTURE",
+        "true" if APP_ENV == "development" else "false",
+    ).strip().lower() in {"1", "true", "yes", "on"}
     TSHARK_PATH: str = os.getenv("TSHARK_PATH", get_default_tshark_path())
     MAX_UPLOAD_SIZE_MB: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "50"))
     ANALYSIS_TIMEOUT_SECONDS: int = int(os.getenv("ANALYSIS_TIMEOUT_SECONDS", "30"))

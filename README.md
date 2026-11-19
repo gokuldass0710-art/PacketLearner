@@ -695,9 +695,9 @@ The background will be optimized to avoid interfering with dashboard readability
 | Phase 3 | Dashboard and packet visualization | Planned |
 | Phase 4 | Beginner learning mode | Planned |
 | Phase 5 | Detection engine and investigation | Planned |
-| Phase 6 | OpenAI Assistant | In progress |
-| Phase 7 | Live capture agent | Planned |
-| Phase 8 | Testing and cloud deployment | Planned |
+| Phase 6 | OpenAI/Ollama Assistant | Implemented |
+| Phase 7 | Live capture agent | Implemented locally |
+| Phase 8 | Testing and cloud deployment preparation | Prepared |
 
 ### Minimum Viable Product (MVP)
 
@@ -735,6 +735,8 @@ Testing will cover:
 
 Sample PCAP files should be used for repeatable testing. Only capture traffic that you own or are explicitly authorized to inspect.
 
+The current offline backend suite uses mocked TShark, OpenAI, Ollama, and capture processes. From `backend/`, run `python -m pytest -q`. From `frontend/`, run `npm run lint` and `npm run build`. Frontend unit tests are not configured yet because the current Vite app has no test runner or component-test harness.
+
 ---
 
 ## 🌐 Deployment Strategy
@@ -759,6 +761,8 @@ PacketLearner is intended to support two deployment environments.
 - Authenticated local capture-agent connectivity.
 
 Cloud hosting does not automatically grant access to a user's local network traffic. The capture agent must establish an authenticated connection and receive explicit user authorization.
+
+Phase 8 deployment preparation is documented in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), with container build definitions in `deploy/` and a non-publishing `docker-compose.cloud.yml` reference. Hosted defaults disable local TShark capture; run the Phase 7 backend locally on the computer whose traffic is being captured.
 
 ---
 

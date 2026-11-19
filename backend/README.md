@@ -28,6 +28,12 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
+Run the backend checks without TShark, packet captures, API keys, or network access:
+
+```powershell
+python -m pytest -q
+```
+
 ### 3. Configure Environment
 
 Copy `.env.example` to `.env` if custom paths are needed:
@@ -78,6 +84,8 @@ On Windows, packet capture may require running the backend with the permissions 
 OpenAI remains the default provider. Keep `OPENAI_API_KEY` and `OPENAI_MODEL` only in `backend/.env`. To use local Ollama on Windows, install Ollama, start the Ollama application/service, download a model such as `ollama pull llama3.2:3b`, and set `ASSISTANT_PROVIDER=ollama` and `OLLAMA_MODEL=llama3.2:3b`. PacketLearner connects only to `http://127.0.0.1:11434/v1`; the Ollama URL is intentionally not configurable, so Ollama cloud or remote hosts are not supported. Ollama does not require an API key.
 
 The frontend Settings view also lets the current browser session choose OpenAI or Local Ollama. The selected provider is sent as a non-secret request preference; credentials remain server-side. If Ollama is stopped or the configured model is not installed, the Assistant returns a clear setup message. Only the existing bounded question, conversation, capture summary, selected packet metadata, and detection findings are sent; PCAP files, payloads, and raw packet contents are never sent.
+
+For a hosted deployment, set `APP_ENV=production` and `ENABLE_LOCAL_CAPTURE=false`. The production default disables the Capture Agent because a cloud backend cannot capture traffic from the user's PC. Run a separate local backend with `ENABLE_LOCAL_CAPTURE=true` when local capture is needed.
 
 ### Detection rule
 
