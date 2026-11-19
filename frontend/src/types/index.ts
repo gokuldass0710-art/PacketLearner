@@ -230,6 +230,19 @@ export interface BackendHealth {
   tshark_installed: boolean
   tshark_path: string
   tshark_version?: string | null
+  database_configured?: boolean
+  database_connected?: boolean
+}
+
+export interface SavedCaptureSummary {
+  id: string
+  fileName: string
+  format: string
+  fileSizeBytes: number
+  totalPackets: number
+  durationSeconds: number
+  findingsCount: number
+  createdAt: string
 }
 
 export interface CaptureInterface {

@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: packetlearner-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./deploy/backend.Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: ENABLE_LOCAL_CAPTURE
+        value: "false"
+      - key: HOST
+        value: 0.0.0.0
+      - key: TSHARK_PATH
+        value: /usr/bin/tshark
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

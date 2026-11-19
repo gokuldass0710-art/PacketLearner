@@ -12,10 +12,17 @@ from .config import settings
 from .models import AnalysisResponse, AssistantConfigResponse, AssistantQuestionRequest, AssistantResponse, HealthResponse
 from .capture import capture_manager
 from .capture_models import CaptureInterfaceResponse, CaptureStartRequest, CaptureStatusResponse
+from .database import initialize_database, list_analyses, save_analysis
+from sqlalchemy.exc import SQLAlchemyError
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    try:
+        app.state.database_connected = initialize_database()
+    except SQLAlchemyError as exc:
+        app.state.database_connected = False
+        print(f"[PacketLearner ERROR] PostgreSQL initialization failed: {exc.__class__.__name__}")
     # Verify TShark on startup
     installed, path, version = get_tshark_version()
     if installed:
@@ -56,6 +63,8 @@ def get_health() -> HealthResponse:
         tshark_installed=installed,
         tshark_path=path,
         tshark_version=version,
+        database_configured=bool(settings.DATABASE_URL),
+        database_connected=bool(getattr(app.state, "database_connected", False)),
     )
 
 
@@ -92,9 +101,12 @@ async def analyze_capture(
             file_format=file_format,
             max_packets=max_packets,
         )
-
+        if settings.DATABASE_URL:
+            try:
+                save_analysis(response)
+            except SQLAlchemyError as exc:
+                raise HTTPException(status_code=503, detail="Capture analyzed, but could not save its summary to the database. Check the backend DATABASE_URL configuration.") from exc
         return response
-
     finally:
         # Always remove temporary file
         if temp_path and os.path.exists(temp_path):
@@ -102,6 +114,17 @@ async def analyze_capture(
                 os.unlink(temp_path)
             except OSError:
                 pass
+
+
+@app.get("/api/captures/history", tags=["Analysis"])
+def capture_history(limit: int = Query(10, ge=1, le=50)) -> list[dict]:
+    """List recent saved capture summaries; raw PCAPs and packet rows are not stored."""
+    try:
+        return list_analyses(limit)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=503, detail="Capture history database is temporarily unavailable.") from exc
 
 
 @app.post(
@@ -157,7 +180,13 @@ def stop_capture(max_packets: int = Query(settings.DEFAULT_PACKET_LIMIT, ge=1, l
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Local capture is disabled on this hosted backend. Run PacketLearner's backend locally on the computer that owns the traffic.")
     path = capture_manager.stop()
     try:
-        return analyze_pcap_with_tshark(path, path.name, path.stat().st_size, "pcapng", max_packets)
+        response = analyze_pcap_with_tshark(path, path.name, path.stat().st_size, "pcapng", max_packets)
+        if settings.DATABASE_URL:
+            try:
+                save_analysis(response)
+            except SQLAlchemyError as exc:
+                raise HTTPException(status_code=503, detail="Capture analyzed, but could not save its summary to the database. Check the backend DATABASE_URL configuration.") from exc
+        return response
     finally:
         try:
             path.unlink(missing_ok=True)

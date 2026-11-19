@@ -8,6 +8,7 @@ services:
       ENABLE_LOCAL_CAPTURE: "false"
       HOST: 0.0.0.0
       PORT: 8000
+      DATABASE_URL: ${DATABASE_URL:-}
       CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS to the exact frontend origin}
       TSHARK_PATH: /usr/bin/tshark
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}

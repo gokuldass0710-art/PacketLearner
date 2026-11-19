@@ -7,6 +7,8 @@ class HealthResponse(BaseModel):
     tshark_installed: bool
     tshark_path: str
     tshark_version: Optional[str] = None
+    database_configured: bool = False
+    database_connected: bool = False
 
 
 class TCPFlags(BaseModel):

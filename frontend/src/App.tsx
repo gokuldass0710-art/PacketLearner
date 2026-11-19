@@ -14,8 +14,8 @@ import { GlassCard } from './components/ui/GlassCard'
 import { ProtocolBadge } from './components/ui/Badge'
 import { LearningCenter } from './components/learning/LearningCenter'
 import { PacketIntelPanel } from './components/learning/PacketIntelPanel'
-import { askOpenAIAssistant, checkBackendHealth, getAssistantConfig } from './services/api'
-import type { AnalysisResponse, AssistantConversationMessage, AssistantProvider, AssistantQuestionRequest, Packet } from './types'
+import { askOpenAIAssistant, checkBackendHealth, getAssistantConfig, getCaptureHistory } from './services/api'
+import type { AnalysisResponse, AssistantConversationMessage, AssistantProvider, AssistantQuestionRequest, Packet, SavedCaptureSummary } from './types'
 import {
   UploadCloud,
   Radio,
@@ -33,6 +33,18 @@ import {
   Search,
   Zap,
 } from 'lucide-react'
+
+const toCaptureItem = (item: SavedCaptureSummary): CaptureItem => ({
+  id: item.id,
+  name: item.fileName,
+  format: item.format,
+  size: `${(item.fileSizeBytes / 1024 / 1024).toFixed(2)} MB`,
+  packets: item.totalPackets,
+  duration: `${String(Math.floor(item.durationSeconds / 60)).padStart(2, '0')}m ${String(Math.round(item.durationSeconds % 60)).padStart(2, '0')}s`,
+  status: item.findingsCount > 0 ? 'Suspicious Found' : 'Clean',
+  date: new Date(item.createdAt).toLocaleString(),
+  isReal: true,
+})
 
 export default function App() {
   const [currentView, setCurrentView] = useState<NavItemKey>('overview')
@@ -70,6 +82,9 @@ export default function App() {
       .catch(() => {
         setBackendConnected(false)
       })
+    getCaptureHistory()
+      .then((items) => setRecentCaptures(items.map(toCaptureItem)))
+      .catch(() => { /* Local development can run without a configured database. */ })
   }, [])
 
   useEffect(() => {
@@ -103,6 +118,9 @@ export default function App() {
     }
 
     setRecentCaptures((prev) => [newCapture, ...prev.filter((c) => c.isReal)])
+    getCaptureHistory()
+      .then((items) => setRecentCaptures(items.map(toCaptureItem)))
+      .catch(() => { /* Keep the current session entry if persistence is unavailable. */ })
   }
 
   // Filtered packets for the Explorer tab

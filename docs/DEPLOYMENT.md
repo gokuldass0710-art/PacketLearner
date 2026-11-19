@@ -28,6 +28,22 @@ The root `docker-compose.cloud.yml` builds a FastAPI image with TShark for uploa
 5. Terminate TLS at the hosting provider or a reverse proxy. Do not run Uvicorn with `--reload` in production.
 6. Add authentication, rate limiting, durable storage policy, and an isolated worker before accepting untrusted public uploads.
 
+## Render backend and PostgreSQL
+
+`render.yaml` describes the Docker-based FastAPI web service. Create the backend service from the GitHub repository with the repository root as its root directory. If Render offers to use the Blueprint, review it and create the `packetlearner-api` web service. Keep the existing PostgreSQL database in the same region (Singapore) as the backend.
+
+In the Render backend service's **Environment** settings, set:
+
+- `DATABASE_URL`: the existing database's **Internal Database URL** (use Render's copy button; never put this value in Git, Vercel, or chat).
+- `CORS_ORIGINS`: the exact deployed Vercel origin, such as `https://your-project.vercel.app` (no trailing slash). Add a comma-separated preview origin only if you need it.
+- `APP_ENV=production`, `ENABLE_LOCAL_CAPTURE=false`, and `TSHARK_PATH=/usr/bin/tshark` (provided by the Blueprint).
+
+Save the variables and deploy/redeploy the backend. `/api/health` reports `database_configured` and `database_connected`; both should be `true`. The backend creates the `capture_analyses` table on startup. It stores capture metadata, protocol counts, top talkers, and findings for history. It does not store uploaded PCAP files or individual packet records. Findings can include network IP addresses, so treat the database as sensitive.
+
+Then in Vercel, open the frontend project's **Settings → Environment Variables** and add `VITE_API_URL` with the Render backend's public HTTPS URL (for example `https://packetlearner-api.onrender.com`, no trailing slash). Apply it to Production and redeploy the frontend so the URL is baked into the Vite build. The browser's network requests should then target the Render backend instead of `127.0.0.1`.
+
+The Render free database shown in the dashboard is temporary and expires after its displayed trial period; export or migrate data before expiration if you need to keep it. Do not store production or sensitive captures in a disposable database.
+
 The backend image defaults to `APP_ENV=production`, `ENABLE_LOCAL_CAPTURE=false`, and `HOST=0.0.0.0`. The capture routes report that local capture is disabled. This is intentional: a cloud machine cannot see or capture traffic from the user's PC. To use Phase 7, run the backend locally on the machine with the authorized interface and set `ENABLE_LOCAL_CAPTURE=true` in that local environment; do not expose that capture backend publicly without authentication and an explicit security design.
 
 ## Provider limitations

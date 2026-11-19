@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     APP_ENV=production \
     ENABLE_LOCAL_CAPTURE=false \
     HOST=0.0.0.0 \
-    PORT=8000
+    PORT=10000
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tshark \
@@ -19,5 +19,5 @@ RUN pip install -r requirements.txt
 COPY backend/app ./app
 
 USER packetlearner
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 10000
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000}"]

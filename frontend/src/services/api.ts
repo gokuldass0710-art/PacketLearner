@@ -1,4 +1,4 @@
-import type { AnalysisResponse, AssistantConfig, AssistantQuestionRequest, AssistantResponse, BackendHealth, CaptureInterface, CaptureStatus } from '../types'
+import type { AnalysisResponse, AssistantConfig, AssistantQuestionRequest, AssistantResponse, BackendHealth, CaptureInterface, CaptureStatus, SavedCaptureSummary } from '../types'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -115,6 +115,12 @@ export async function getAssistantConfig(): Promise<AssistantConfig> {
     if (err instanceof ApiError) throw err
     throw new ApiError(err instanceof Error ? err.message : 'Assistant configuration unavailable.', 0)
   }
+}
+
+export async function getCaptureHistory(): Promise<SavedCaptureSummary[]> {
+  const res = await fetch(`${API_BASE}/api/captures/history?limit=10`, { headers: { Accept: 'application/json' } })
+  if (!res.ok) throw new ApiError(`Capture history returned status ${res.status}`, res.status)
+  return await res.json()
 }
 
 async function captureRequest<T>(path: string, init?: RequestInit): Promise<T> {

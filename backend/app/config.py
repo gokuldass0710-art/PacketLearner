@@ -52,6 +52,7 @@ class Settings:
     ASSISTANT_PROVIDER: str = os.getenv("ASSISTANT_PROVIDER", "openai").strip().lower()
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.2:3b").strip()
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434/v1"
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "").strip()
 
     # CORS origins restricted to local development Vite / frontend
     raw_cors = os.getenv(
